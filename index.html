@@ -32,1277 +32,1278 @@
         .text-3xs {
             font-size: 0.55rem; /* ~8.8px */
         }
-        .text-2xs {
-            font-size: 0.65rem; /* ~10.4px */
+
+        /* General Modal Styling */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none; /* Initially hidden */
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto; /* Allow scrolling for tall content */
+        }
+        .modal-content {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            max-width: 90%;
+            width: 550px;
+            max-height: 90vh; /* Limit height */
+            overflow-y: auto; /* Allow scrolling within the modal content */
         }
 
-        /* Custom progress bar styling for class cards */
-        .progress-bar-bg {
-            height: 4px;
-            background-color: #e5e7eb;
+        /* Specific styles for the Report Input Modal */
+        #report-modal .modal-content {
+            width: 450px;
+        }
+        
+        /* Specific styles for the Settings Modal */
+        #settings-modal .modal-content {
+            width: 800px;
+            max-width: 95%;
+            padding: 0; /* No padding on container, padding is inside tabs */
+        }
+
+        .tab-button.active {
+            border-color: #0d9488; /* Emerald-600 */
+            color: #0d9488;
+            font-weight: 600;
+        }
+
+        /* Custom progress bar */
+        .progress-bar-container {
+            height: 6px;
             border-radius: 9999px;
+            background-color: #e5e7eb; /* Gray-200 */
             overflow: hidden;
         }
-
-        /* Custom scrollbar for better modal aesthetics */
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 8px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
+        .progress-bar-fill {
+            height: 100%;
+            transition: width 0.3s ease-in-out, background-color 0.3s ease-in-out;
         }
         
-        /* Utility for different performance levels */
-        .level-excellent { border-left-color: #10b981; } /* Emerald 500 */
-        .level-good { border-left-color: #3b82f6; } /* Blue 500 */
-        .level-fair { border-left-color: #f59e0b; } /* Amber 500 */
-        .level-poor { border-left-color: #ef4444; } /* Red 500 */
-
-        .level-excellent-bg { background-color: #10b981; }
-        .level-good-bg { background-color: #3b82f6; }
-        .level-fair-bg { background-color: #f59e0b; }
-        .level-poor-bg { background-color: #ef4444; }
-        
-        /* Button focus styles */
-        button:focus, a:focus, input:focus, select:focus, textarea:focus {
-            outline: 2px solid #3b82f6;
-            outline-offset: 2px;
-            border-color: transparent !important;
-        }
     </style>
 </head>
 <body class="antialiased">
 
-    <!-- Global Message/Notification Box -->
-    <div id="message-box" class="fixed top-4 right-4 z-50 transition-all duration-300 opacity-0 transform translate-x-full">
-        <div class="bg-gray-800 text-white px-4 py-2 rounded-lg shadow-xl flex items-center space-x-2">
-            <i class="ph-info-fill text-lg"></i>
-            <span id="message-text" class="text-sm"></span>
-        </div>
-    </div>
+    <!-- Global State -->
+    <script>
+        // --- GLOBAL VARIABLES (Provided by Canvas Environment) ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        // --- FIREBASE IMPORTS WILL BE DYNAMICALLY HANDLED IN initializeFirebase ---
+    </script>
 
-    <!-- Main Application Header -->
-    <header class="bg-white shadow-md p-4 flex items-center justify-between z-10 sticky top-0">
-        <div class="flex items-center space-x-3">
-            <!-- School Logo/Text -->
-            <div id="school-logo-container" class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 text-lg font-bold text-gray-700 overflow-hidden shrink-0">
-                <img id="school-logo-img" class="object-cover w-full h-full hidden" alt="School Logo">
-                <span id="school-logo-text">T.</span>
+    <!-- 1. HEADER & CONTROLS -->
+    <header class="flex-shrink-0 bg-white shadow-lg p-3 md:p-4 z-10 sticky top-0">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center space-y-3 sm:space-y-0">
+            <!-- School Info & Logo -->
+            <div id="school-info-display" class="flex items-center space-x-3 w-full sm:w-auto">
+                <div id="school-logo-preview" class="w-10 h-10 bg-gray-200 flex items-center justify-center rounded-full overflow-hidden text-xl font-bold text-gray-600 transition duration-300">
+                    <span id="school-logo-text">T.</span>
+                    <img id="school-logo-img" src="" alt="School Logo" class="object-cover w-full h-full hidden" onerror="this.classList.add('hidden'); document.getElementById('school-logo-text').classList.remove('hidden');">
+                </div>
+                <div class="text-left">
+                    <h1 id="school-name-display" class="text-lg font-extrabold text-gray-800 leading-tight">...</h1>
+                    <p id="school-address-display" class="text-xs text-gray-500 hidden md:block">...</p>
+                </div>
             </div>
-            
-            <div class="text-sm">
-                <h1 id="school-name-display" class="font-bold text-gray-800 truncate max-w-40 sm:max-w-64">Ultra Tracker</h1>
-                <p id="school-contact-display" class="text-xs text-gray-500 hidden sm:block truncate max-w-64">No contact info set</p>
+
+            <!-- Date Picker & Selected Date Display -->
+            <div class="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-4 w-full sm:w-auto">
+                <div class="text-center md:text-right">
+                    <p class="text-sm font-medium text-gray-600">Selected Report Date:</p>
+                    <p id="selected-date-display" class="text-xl font-bold text-emerald-600">--/--/----</p>
+                </div>
+                
+                <input type="date" id="date-picker" 
+                       class="px-3 py-2 text-base border border-gray-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500 transition w-full md:w-auto cursor-pointer"
+                       onchange="app.setDate(this.value)">
             </div>
-        </div>
 
-        <!-- Middle Controls (Date Picker) -->
-        <div class="flex items-center space-x-2 sm:space-x-4">
-            <input type="date" id="date-picker" class="p-2 border border-gray-300 rounded-lg text-sm bg-white hover:border-blue-500 transition focus:ring-blue-500 focus:border-blue-500">
-        </div>
-
-        <!-- Right Controls (Settings and Auth) -->
-        <div class="flex items-center space-x-3">
-            <button id="settings-button" onclick="window.app.openSettings()" class="p-2 rounded-full hover:bg-gray-100 transition text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" title="Settings">
-                <i class="ph-gear-fill text-xl"></i>
-            </button>
-            <button id="auth-button" onclick="window.app.signInWithGoogle()" class="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition focus:outline-none focus:ring-2 focus:ring-blue-500" title="Sign In">
-                <i class="ph-user-circle-fill text-xl"></i>
-            </button>
-        </div>
-    </header>
-
-    <!-- Main Content Area -->
-    <main id="main-content" class="flex-grow p-4 overflow-y-auto custom-scrollbar">
-        <div id="loading-spinner" class="text-center p-8">
-            <i class="ph-circle-notch-fill animate-spin text-4xl text-blue-500"></i>
-            <p class="text-gray-600 mt-2">Loading data and configuring Firebase...</p>
-        </div>
-
-        <div id="tracker-dashboard" class="max-w-7xl mx-auto hidden">
-            <!-- Department and Class Structure will be rendered here -->
-            <div id="departments-container">
-                <!-- Example Structure for a Department -->
-                <!--
-                <section class="mb-8">
-                    <h2 class="text-2xl font-bold text-gray-700 mb-3 border-b pb-1">Weekend School</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        ... Girls and Boys Sections ...
+            <!-- Settings & Auth -->
+            <div class="flex space-x-2 w-full sm:w-auto justify-end">
+                <!-- Settings Button -->
+                <button onclick="app.openSettingsModal()" 
+                        class="p-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition shadow-md hover:shadow-lg active:scale-95">
+                    <i class="ph-fill ph-gear text-xl"></i>
+                </button>
+                <!-- Auth/User Button -->
+                <button id="auth-button" onclick="app.toggleAuthMenu(event)" 
+                        class="relative p-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full transition shadow-md hover:shadow-lg active:scale-95">
+                    <i id="auth-icon" class="ph-fill ph-user text-xl"></i>
+                    <div id="auth-menu" class="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-xl hidden z-20">
+                        <p id="user-id-display" class="p-3 text-xs text-gray-500 break-words border-b">...</p>
+                        <button onclick="app.signInWithGoogle(); app.toggleAuthMenu(event)" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2">
+                            <i class="ph-fill ph-google-logo text-lg text-red-500"></i>
+                            <span>Sign in with Google</span>
+                        </button>
+                        <button onclick="app.signOutUser(); app.toggleAuthMenu(event)" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2 hidden" id="sign-out-button">
+                            <i class="ph-fill ph-sign-out text-lg text-gray-500"></i>
+                            <span>Sign Out</span>
+                        </button>
+                        <button onclick="app.copyUserId(); app.toggleAuthMenu(event)" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2">
+                            <i class="ph-fill ph-copy text-lg text-blue-500"></i>
+                            <span>Copy User ID</span>
+                        </button>
                     </div>
-                </section>
-                -->
-            </div>
-
-            <!-- Empty State -->
-            <div id="empty-config-message" class="hidden text-center p-12 bg-white rounded-xl shadow-lg mt-8">
-                <i class="ph-chalkboard-teacher-fill text-6xl text-gray-400"></i>
-                <h3 class="text-xl font-semibold text-gray-700 mt-4">No Classes Configured</h3>
-                <p class="text-gray-500 mt-2">Use the <span class="font-semibold text-blue-600">Settings</span> button (gear icon) to add your departments and classes.</p>
-                <button onclick="window.app.openSettings()" class="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition">
-                    Open Settings
                 </button>
             </div>
         </div>
+    </header>
+
+    <!-- 2. MAIN DASHBOARD CONTENT -->
+    <main class="flex-grow overflow-y-auto p-4 md:p-6">
+        <div id="tracker-dashboard" class="max-w-7xl mx-auto space-y-8">
+            <!-- Content will be rendered here by renderDashboard() -->
+            <p id="loading-indicator" class="text-center text-gray-500 py-12">
+                <i class="ph-bold ph-spinner-gap animate-spin text-3xl block mx-auto"></i>
+                Loading configuration and data...
+            </p>
+            <p id="no-config-message" class="text-center text-gray-500 py-12 hidden">
+                <i class="ph-bold ph-gear-six text-3xl block mx-auto text-yellow-500"></i>
+                School configuration is empty. Please open <button onclick="app.openSettingsModal()" class="text-emerald-600 font-semibold hover:underline">Settings</button> to add departments and classes.
+            </p>
+        </div>
     </main>
 
-    <!-- --- MODALS --- -->
+    <!-- 3. MODALS -->
 
-    <!-- 1. Report Input Modal -->
-    <div id="report-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-40 flex items-center justify-center p-4" onclick="if(event.target.id === 'report-modal') window.app.closeModal('report-modal')">
-        <div id="report-content-wrapper" class="bg-white rounded-xl shadow-2xl w-full max-w-lg transform transition-all duration-300 scale-95 opacity-0 p-6">
-            <h3 class="text-2xl font-bold text-gray-800 mb-2">Daily Report for <span id="report-class-name">Class X</span></h3>
-            <p id="report-date-display" class="text-sm text-gray-500 mb-6"></p>
-
-            <form id="report-form" onsubmit="event.preventDefault(); window.app.updateReportEntry()">
-                <div class="space-y-4">
-                    <!-- Total Students -->
-                    <div class="flex items-center justify-between">
-                        <label for="report-total" class="text-gray-700 font-medium">Total Students</label>
-                        <input type="number" id="report-total" min="0" required class="w-24 p-2 border border-gray-300 rounded-lg text-right" oninput="window.app.recalculateDCS()" placeholder="0">
-                    </div>
-                    <!-- Present Today -->
-                    <div class="flex items-center justify-between">
-                        <label for="report-present" class="text-gray-700 font-medium">Present Today (50% weight)</label>
-                        <input type="number" id="report-present" min="0" required class="w-24 p-2 border border-gray-300 rounded-lg text-right" oninput="window.app.recalculateDCS()" placeholder="0">
-                    </div>
-                    <!-- Progress Report Brought -->
-                    <div class="flex items-center justify-between">
-                        <label for="report-pr-brought" class="text-gray-700 font-medium">PR Brought (25% weight)</label>
-                        <input type="number" id="report-pr-brought" min="0" required class="w-24 p-2 border border-gray-300 rounded-lg text-right" oninput="window.app.recalculateDCS()" placeholder="0">
-                    </div>
-                    <!-- Progress Report Signed -->
-                    <div class="flex items-center justify-between">
-                        <label for="report-pr-signed" class="text-gray-700 font-medium">PR Signed (25% weight)</label>
-                        <input type="number" id="report-pr-signed" min="0" required class="w-24 p-2 border border-gray-300 rounded-lg text-right" oninput="window.app.recalculateDCS()" placeholder="0">
-                    </div>
-                </div>
-
-                <div class="mt-6 pt-4 border-t border-gray-200 flex justify-between items-center">
-                    <div class="text-left">
-                        <p class="text-sm text-gray-500">Daily Class Score (DCS)</p>
-                        <p id="report-dcs-display" class="text-3xl font-extrabold text-blue-600">0.0%</p>
-                    </div>
-                    <div class="space-x-3">
-                        <button type="button" onclick="window.app.closeModal('report-modal')" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">Cancel</button>
-                        <button type="submit" id="report-submit-button" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:bg-gray-400" disabled>
-                            <span id="report-submit-text">Save Report</span>
-                            <i id="report-submit-spinner" class="ph-circle-notch-fill animate-spin hidden ml-1"></i>
-                        </button>
-                        <button type="button" id="report-delete-button" onclick="window.app.deleteReportEntry()" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition hidden">Delete</button>
-                    </div>
-                </div>
-                <p id="report-error-message" class="text-red-500 text-sm mt-3 hidden"></p>
-            </form>
+    <!-- Modal Base Structure -->
+    <div id="modal-base-template" class="modal-overlay hidden">
+        <div class="modal-content relative">
+            <button onclick="app.closeModal(this.closest('.modal-overlay').id)" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition">
+                <i class="ph-bold ph-x-circle text-2xl"></i>
+            </button>
+            <div id="modal-content-wrapper">
+                <!-- Content injected here -->
+            </div>
         </div>
     </div>
 
-    <!-- 2. Settings Modal -->
-    <div id="settings-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-40 flex items-center justify-center p-4" onclick="if(event.target.id === 'settings-modal') window.app.closeModal('settings-modal')">
-        <div id="settings-content-wrapper" class="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] transform transition-all duration-300 scale-95 opacity-0 flex flex-col p-6">
-            <h3 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">Application Settings</h3>
-            
-            <div class="flex-grow overflow-y-auto custom-scrollbar space-y-8 pr-4">
+    <!-- 3.1 Report Input Modal -->
+    <div id="report-modal" class="modal-overlay hidden">
+        <div class="modal-content relative">
+            <button onclick="app.closeModal('report-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition">
+                <i class="ph-bold ph-x-circle text-2xl"></i>
+            </button>
+            <div id="report-content-wrapper">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Daily Report Entry</h2>
+                <p class="text-sm text-gray-500 mb-6">Enter metrics for <span id="report-modal-class-name" class="font-semibold text-emerald-600"></span> on <span id="report-modal-date" class="font-semibold"></span>.</p>
                 
-                <!-- School Information Section -->
-                <section>
-                    <h4 class="text-xl font-semibold text-gray-700 mb-3 flex items-center space-x-2"><i class="ph-buildings text-2xl"></i><span>School Information</span></h4>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="col-span-1">
-                            <label for="config-schoolName" class="block text-sm font-medium text-gray-700">School Name (Required)</label>
-                            <input type="text" id="config-schoolName" required class="mt-1 block w-full p-2 border border-gray-300 rounded-lg">
-                        </div>
-                        <div class="col-span-1">
-                            <label for="config-schoolAddress" class="block text-sm font-medium text-gray-700">Address</label>
-                            <input type="text" id="config-schoolAddress" class="mt-1 block w-full p-2 border border-gray-300 rounded-lg">
-                        </div>
-                        <div class="col-span-1">
-                            <label for="config-schoolPhone" class="block text-sm font-medium text-gray-700">Phone</label>
-                            <input type="tel" id="config-schoolPhone" class="mt-1 block w-full p-2 border border-gray-300 rounded-lg">
-                        </div>
-                        <div class="col-span-1">
-                            <label for="config-schoolWebsite" class="block text-sm font-medium text-gray-700">Website</label>
-                            <input type="url" id="config-schoolWebsite" class="mt-1 block w-full p-2 border border-gray-300 rounded-lg" placeholder="https://example.com">
-                        </div>
-                        <div class="col-span-full md:col-span-1">
-                            <label for="config-schoolLogo" class="block text-sm font-medium text-gray-700">School Logo Image (PNG/JPG)</label>
-                            <input type="file" id="config-schoolLogo" accept=".png, .jpg, .jpeg" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                        </div>
-                        <div class="col-span-full md:col-span-1">
-                            <label for="config-schoolLogoText" class="block text-sm font-medium text-gray-700">Logo Text Fallback (1 char)</label>
-                            <input type="text" id="config-schoolLogoText" maxlength="1" class="mt-1 block w-full p-2 border border-gray-300 rounded-lg uppercase" placeholder="E.g., T">
-                        </div>
-                    </div>
-                </section>
+                <input type="hidden" id="report-modal-class-id">
                 
-                <!-- Departments & Classes Section -->
-                <section>
-                    <h4 class="text-xl font-semibold text-gray-700 mb-4 flex items-center justify-between">
-                        <span class="flex items-center space-x-2"><i class="ph-hard-hat-fill text-2xl"></i><span>Departments & Classes</span></span>
-                        <button onclick="window.app.addDepartment()" type="button" class="flex items-center space-x-1 px-3 py-1 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition shadow">
-                            <i class="ph-plus text-lg"></i><span>Add Department</span>
-                        </button>
-                    </h4>
-
-                    <div id="departments-config-container" class="space-y-6">
-                        <!-- Departments will be rendered here -->
+                <div class="space-y-4">
+                    <!-- Total Strength -->
+                    <div>
+                        <label for="report-total" class="block text-sm font-medium text-gray-700">Total Class Strength</label>
+                        <input type="number" id="report-total" oninput="app.recalculateDCS()" min="0" required
+                               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3">
                     </div>
-                </section>
 
-            </div>
+                    <!-- Present Today -->
+                    <div>
+                        <label for="report-present" class="block text-sm font-medium text-gray-700">Present Today</label>
+                        <input type="number" id="report-present" oninput="app.recalculateDCS()" min="0" required
+                               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3">
+                    </div>
 
-            <!-- Footer for Save Button -->
-            <div class="mt-6 pt-4 border-t border-gray-200 flex justify-end">
-                <div class="space-x-3">
-                    <button type="button" onclick="window.app.closeModal('settings-modal')" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">Close</button>
-                    <button id="config-save-button" onclick="window.app.saveConfig()" type="button" class="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition shadow disabled:bg-gray-400">
-                        <span id="config-save-text">Save All Settings</span>
-                        <i id="config-save-spinner" class="ph-circle-notch-fill animate-spin hidden ml-1"></i>
+                    <!-- PR Brought -->
+                    <div>
+                        <label for="report-pr-brought" class="block text-sm font-medium text-gray-700">Progress Reports (PR) Brought</label>
+                        <input type="number" id="report-pr-brought" oninput="app.recalculateDCS()" min="0" required
+                               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3">
+                    </div>
+
+                    <!-- PR Signed -->
+                    <div>
+                        <label for="report-pr-signed" class="block text-sm font-medium text-gray-700">Progress Reports (PR) Signed</label>
+                        <input type="number" id="report-pr-signed" oninput="app.recalculateDCS()" min="0" required
+                               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3">
+                    </div>
+                </div>
+
+                <!-- DCS Display -->
+                <div class="mt-6 p-4 bg-emerald-50 border-l-4 border-emerald-500 rounded-r-lg flex justify-between items-center">
+                    <p class="text-sm font-medium text-emerald-800">Daily Class Score (DCS)</p>
+                    <p id="report-dcs-display" class="text-3xl font-extrabold text-emerald-600">--%</p>
+                </div>
+
+                <div class="mt-6 flex justify-between items-center">
+                    <button onclick="app.deleteReportEntry()" id="delete-report-button"
+                            class="py-2 px-4 border border-red-500 text-red-600 rounded-lg hover:bg-red-50 transition font-medium text-sm shadow-md hidden">
+                        <i class="ph-fill ph-trash-simple text-lg mr-1"></i> Delete Report
+                    </button>
+                    <button onclick="app.updateReportEntry()" id="save-report-button"
+                            class="ml-auto py-3 px-6 bg-emerald-600 text-white font-semibold rounded-lg shadow-xl hover:bg-emerald-700 transition active:scale-95">
+                        <i class="ph-fill ph-floppy-disk text-lg mr-2"></i> Save Report
                     </button>
                 </div>
             </div>
-            <p id="settings-error-message" class="text-red-500 text-sm mt-3 hidden text-right"></p>
         </div>
     </div>
-    
-    <!-- 3. Confirmation/Custom Alert Modal -->
-    <div id="confirm-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 transform transition-all duration-300 scale-95 opacity-0" id="confirm-content-wrapper">
-            <h3 class="text-xl font-bold text-gray-800 mb-2" id="confirm-title">Confirm Action</h3>
-            <p class="text-gray-600 mb-6" id="confirm-message">Are you sure you want to proceed?</p>
-            <div class="flex justify-end space-x-3">
-                <button type="button" onclick="window.app.confirmReject()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">Cancel</button>
-                <button type="button" onclick="window.app.confirmResolve()" id="confirm-action-button" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">Confirm</button>
+
+    <!-- 3.2 Settings Modal -->
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-content relative">
+            <button onclick="app.closeModal('settings-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 z-10 p-2 bg-white rounded-full transition">
+                <i class="ph-bold ph-x-circle text-2xl"></i>
+            </button>
+            <div id="settings-content-wrapper">
+                <div class="border-b border-gray-200">
+                    <nav class="flex space-x-4 px-6 pt-4" aria-label="Tabs">
+                        <button id="tab-school-info" onclick="app.showSettingsTab('school-info')" class="tab-button active shrink-0 px-3 py-2 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:border-gray-300 transition">
+                            School Info
+                        </button>
+                        <button id="tab-departments" onclick="app.showSettingsTab('departments')" class="tab-button shrink-0 px-3 py-2 text-sm font-medium text-gray-500 border-b-2 border-transparent hover:border-gray-300 transition">
+                            Departments & Classes
+                        </button>
+                    </nav>
+                </div>
+
+                <div class="p-6 h-full overflow-y-auto">
+                    
+                    <!-- School Information Tab -->
+                    <div id="school-info-tab" class="space-y-6">
+                        <h3 class="text-xl font-bold text-gray-800">School Information</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Name -->
+                            <div>
+                                <label for="config-schoolName" class="block text-sm font-medium text-gray-700">School Name</label>
+                                <input type="text" id="config-schoolName" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-3" placeholder="e.g., The Academy of Excellence">
+                            </div>
+                            <!-- Logo Text -->
+                            <div>
+                                <label for="config-schoolLogoText" class="block text-sm font-medium text-gray-700">Logo Text (Fallback)</label>
+                                <input type="text" id="config-schoolLogoText" maxlength="2" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-3" placeholder="e.g., T.">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Address -->
+                            <div>
+                                <label for="config-schoolAddress" class="block text-sm font-medium text-gray-700">Address</label>
+                                <input type="text" id="config-schoolAddress" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-3" placeholder="e.g., 123 Learning Lane">
+                            </div>
+                            <!-- Phone -->
+                            <div>
+                                <label for="config-schoolPhone" class="block text-sm font-medium text-gray-700">Phone Number</label>
+                                <input type="tel" id="config-schoolPhone" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-3" placeholder="e.g., +1-555-1234">
+                            </div>
+                        </div>
+
+                        <!-- Website -->
+                        <div>
+                            <label for="config-schoolWebsite" class="block text-sm font-medium text-gray-700">Website URL</label>
+                            <input type="url" id="config-schoolWebsite" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-3" placeholder="e.g., https://example.com">
+                        </div>
+
+                        <!-- Logo Image Upload -->
+                        <div class="border p-4 rounded-lg bg-gray-50">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">School Logo Image</label>
+                            <div class="flex items-center space-x-4">
+                                <input type="file" id="config-schoolLogoFile" accept="image/*" class="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 transition">
+                                <button onclick="document.getElementById('config-schoolLogoFile').value = ''; app.updateLogoPreview()"
+                                        class="text-red-500 hover:text-red-700 text-sm font-medium transition">
+                                    Clear Image
+                                </button>
+                                <p id="logo-status" class="text-xs text-gray-500 ml-auto"></p>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-2">Only Google-signed-in users can save an uploaded image logo.</p>
+                        </div>
+                    </div>
+
+                    <!-- Departments & Classes Tab -->
+                    <div id="departments-tab" class="space-y-6 hidden">
+                        <h3 class="text-xl font-bold text-gray-800 flex justify-between items-center">
+                            <span>Manage Departments and Classes</span>
+                            <button onclick="app.addDepartment()" class="py-2 px-4 bg-emerald-600 text-white font-medium rounded-lg shadow-md hover:bg-emerald-700 transition active:scale-95 text-sm">
+                                <i class="ph-fill ph-plus-circle text-lg mr-1"></i> Add Department
+                            </button>
+                        </h3>
+                        
+                        <div id="departments-list" class="space-y-4">
+                            <!-- Department blocks will be rendered here by renderDepartmentsInSettings() -->
+                        </div>
+                        <p id="no-departments-message" class="text-center text-gray-500 py-4 hidden">No departments added yet.</p>
+                    </div>
+
+                    <!-- Save Button (Sticky Footer) -->
+                    <div class="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex justify-end shadow-inner">
+                        <p id="save-status" class="text-sm font-medium text-red-500 mr-4 self-center hidden">Must be signed in with Google to save configuration.</p>
+                        <button onclick="app.saveConfig()" id="save-config-button"
+                                class="py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-xl hover:bg-blue-700 transition active:scale-95 disabled:opacity-50" disabled>
+                            <i class="ph-fill ph-floppy-disk text-lg mr-2"></i> Save Configuration
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     
+    <!-- 3.3 Confirmation Modal -->
+    <div id="confirm-modal" class="modal-overlay hidden">
+        <div class="modal-content relative w-96">
+            <div id="confirm-content-wrapper" class="text-center">
+                <i class="ph-fill ph-warning-circle text-5xl text-yellow-500 mb-4"></i>
+                <h2 class="text-xl font-bold text-gray-800 mb-2" id="confirm-title">Confirm Action</h2>
+                <p class="text-sm text-gray-600 mb-6" id="confirm-message">Are you sure you want to proceed with this action? It cannot be undone.</p>
+                <div class="flex justify-center space-x-4">
+                    <button id="confirm-cancel-button" class="py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition font-medium">
+                        Cancel
+                    </button>
+                    <button id="confirm-ok-button" class="py-2 px-4 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition active:scale-95">
+                        Confirm
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 4. JAVASCRIPT LOGIC -->
     <script type="module">
+        // --- FIREBASE IMPORTS ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // NOTE: Added 'deleteField' to this import list
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, runTransaction, serverTimestamp, query, where, deleteField } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { 
+            getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, 
+            GoogleAuthProvider, signInWithPopup, signOut 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, doc, onSnapshot, setDoc, runTransaction, collection, 
+            query, where, getDoc, getDocs, deleteDoc, setLogLevel 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { 
+            getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        
+        setLogLevel('Debug'); // Enable Firestore logging
 
-        // Set Firebase logging level for debugging
-        setLogLevel('Debug');
-
-        // --- GLOBAL FIREBASE/APP STATE ---
-        let db;
-        let auth;
-        let storage;
-        let userId = null;
-        let authReady = false;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // --- CORE APPLICATION STATE ---
+        let db, auth, storage;
+        let userId = 'anon';
+        let isAuthReady = false;
         let config = { 
-            schoolInfo: { 
-                name: "Ultra Tracker", 
-                logoUrl: null, 
-                logoText: 'T.',
-                address: "", phone: "", website: ""
-            }, 
+            schoolInfo: {}, 
             departments: [] 
         };
         let dailyReports = {};
         let accumulatedScores = {};
-        let configSnapshotUnsub;
-        let reportsSnapshotUnsub;
-        let accumulatedSnapshotUnsub;
         
-        // Date tracking
-        let selectedDate = new Date(); // Defaults to today
+        let selectedDate = formatDate(new Date());
 
-        // Confirmation Modal Promise Handlers
-        let resolveConfirm;
-        let rejectConfirm;
+        // --- UTILITY FUNCTIONS ---
 
+        /** Generates a simple slug from a string (e.g., "1A - Girls" -> "1a-girls") */
+        function slugify(text) {
+            return text.toString().toLowerCase()
+                .trim()
+                .replace(/\s+/g, '-')           // Replace spaces with -
+                .replace(/[^\w\-]+/g, '')       // Remove all non-word chars
+                .replace(/\-\-+/g, '-')         // Replace multiple - with single -
+                .replace(/^-+/, '')             // Trim - from start of text
+                .replace(/-+$/, '');            // Trim - from end of text
+        }
 
-        // --- FIREBASE PATHS & CONSTANTS ---
-        const CONFIG_DOC_PATH = `artifacts/${appId}/public/data/config/schoolConfig`;
-        const ACCUMULATED_COL_PATH = `artifacts/${appId}/public/data/accumulated_class_scores`;
-        const STORAGE_LOGO_PATH = `artifacts/${appId}/public/logo/school_logo`;
+        /** Formats a Date object to YYYY-MM-DD string */
+        function formatDate(date) {
+            const d = new Date(date);
+            let month = '' + (d.getMonth() + 1);
+            let day = '' + d.getDate();
+            const year = d.getFullYear();
 
-        /**
-         * Initializes Firebase and authenticates the user.
-         */
-        async function initializeFirebase() {
+            if (month.length < 2) month = '0' + month;
+            if (day.length < 2) day = '0' + day;
+
+            return [year, month, day].join('-');
+        }
+
+        /** Calculates the Daily Class Score (DCS) percentage */
+        function calculateDCS(total, present, prBrought, prSigned) {
+            if (total === 0) return 0;
+
+            const presentP = present / total;
+            const prBroughtP = prBrought / total;
+            const prSignedP = prSigned / total;
+
+            // DCS = (Present * 50%) + (PR Brought * 25%) + (PR Signed * 25%)
+            const dcs = (presentP * 0.5) + (prBroughtP * 0.25) + (prSignedP * 0.25);
+            return Math.min(100, Math.round(dcs * 100)); // Cap at 100%
+        }
+
+        /** Custom confirmation/alert dialog replacement */
+        function customConfirm(title, message, isDestructive = false) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('confirm-modal');
+                const titleEl = document.getElementById('confirm-title');
+                const messageEl = document.getElementById('confirm-message');
+                const okButton = document.getElementById('confirm-ok-button');
+
+                titleEl.textContent = title;
+                messageEl.textContent = message;
+
+                okButton.className = isDestructive 
+                    ? 'py-2 px-4 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition active:scale-95' 
+                    : 'py-2 px-4 bg-emerald-600 text-white font-semibold rounded-lg shadow-md hover:bg-emerald-700 transition active:scale-95';
+
+                const handleCancel = () => {
+                    appInterface.closeModal('confirm-modal');
+                    resolve(false);
+                };
+
+                const handleOk = () => {
+                    appInterface.closeModal('confirm-modal');
+                    resolve(true);
+                };
+
+                document.getElementById('confirm-cancel-button').onclick = handleCancel;
+                okButton.onclick = handleOk;
+
+                appInterface.openModal('confirm-modal');
+            });
+        }
+        
+        /** Retry function with exponential backoff for API calls */
+        async function retryFetch(url, options, maxRetries = 3, delay = 1000) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response;
+                } catch (error) {
+                    console.error(`Attempt ${i + 1} failed:`, error.message);
+                    if (i === maxRetries - 1) throw error;
+                    await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+                }
+            }
+        }
+
+        // --- FIREBASE INITIALIZATION & AUTH ---
+
+        function initializeFirebase() {
             try {
-                // Hardcoded fallback configuration provided by the user (as a JSON string)
-                const userProvidedConfigString = `{
-                    "apiKey": "AIzaSyCtsveJ8hmw6JJN4YlouNuHhmvSYumiMos",
-                    "authDomain": "classroom-chronicle-l6lhk.firebaseapp.com",
-                    "projectId": "classroom-chronicle-l6lhk",
-                    "storageBucket": "classroom-chronicle-l6lhk.firebasestorage.app",
-                    "messagingSenderId": "642583297310",
-                    "appId": "1:642583297310:web:fdb8da9ab0f01cd9aa9d0f"
-                }`;
-
-                // Prioritize the environment variable (__firebase_config) but fall back to the user's config string if not defined.
-                const firebaseConfigJson = typeof __firebase_config !== 'undefined' && __firebase_config ? __firebase_config : userProvidedConfigString;
-                const firebaseConfig = JSON.parse(firebaseConfigJson);
-
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
                 storage = getStorage(app);
-
-                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
                 
-                const authPromise = new Promise((resolve) => {
-                    // Set up Auth State Listener
-                    onAuthStateChanged(auth, async (user) => {
-                        if (user) {
-                            userId = user.uid;
-                            authReady = true;
-                            await setupRealtimeListeners();
-                            updateAuthButton('Sign Out / User ID: ' + userId);
-                        } else {
-                            // If user logs out or initial check fails (and no initial token provided)
-                            userId = null;
-                            authReady = true;
-                            // Attempt anonymous sign-in if no token was available
-                            if (!initialAuthToken) {
-                                await signInAnonymously(auth);
-                            } else {
-                                // If initial token was provided but failed, or logged out, set up UI
-                                updateAuthButton('Sign In');
-                            }
-                        }
-                        resolve();
-                    });
-                });
-
-                // Authenticate using the provided token if it exists
+                // 1. Initial Auth Check and Sign-in
                 if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
+                    signInWithCustomToken(auth, initialAuthToken)
+                        .catch(err => {
+                            console.error("Custom token sign-in failed:", err);
+                            signInAnonymously(auth); // Fallback to anonymous
+                        });
                 } else {
-                    // Start the anonymous sign-in process if no token
-                    await signInAnonymously(auth);
+                    signInAnonymously(auth);
                 }
 
-                await authPromise; // Wait for onAuthStateChanged to complete its initial run
-
-                // Setup date picker
-                const datePicker = document.getElementById('date-picker');
-                const today = formatToISODate(selectedDate);
-                datePicker.value = today;
-                datePicker.max = today; // Cannot select future dates
-                datePicker.addEventListener('change', (e) => {
-                    const newDate = new Date(e.target.value);
-                    newDate.setHours(0, 0, 0, 0); // Normalize to start of day
-                    selectedDate = newDate;
-                    setupRealtimeListeners();
-                });
-
-                document.getElementById('loading-spinner').classList.add('hidden');
-                document.getElementById('tracker-dashboard').classList.remove('hidden');
-
-            } catch (error) {
-                console.error("Firebase initialization failed:", error);
-                showNotification(`Initialization failed. Check console for details.`, 'error');
-            }
-        }
-
-        /**
-         * Sets up all Firestore real-time listeners (Config, Reports, Accumulated Scores).
-         */
-        async function setupRealtimeListeners() {
-            // Unsubscribe existing listeners
-            if (configSnapshotUnsub) configSnapshotUnsub();
-            if (reportsSnapshotUnsub) reportsSnapshotUnsub();
-            if (accumulatedSnapshotUnsub) accumulatedSnapshotUnsub();
-            
-            // 1. Listen for Config changes
-            configSnapshotUnsub = onSnapshot(doc(db, CONFIG_DOC_PATH), (docSnap) => {
-                if (docSnap.exists()) {
-                    config = { ...config, ...docSnap.data() };
-                    renderSchoolInfo();
-                } else {
-                    // Use default config if doc doesn't exist (first run)
-                    console.log("School config not found, using defaults.");
-                }
-                renderDashboard(); // Re-render whenever config changes
-            }, (error) => console.error("Error listening to config:", error));
-
-            // 2. Listen for Daily Reports (based on selectedDate)
-            const todayISO = formatToISODate(selectedDate);
-            const reportDocRef = doc(db, `artifacts/${appId}/public/data/daily_attendance_reports/${todayISO}`);
-            
-            reportsSnapshotUnsub = onSnapshot(reportDocRef, (docSnap) => {
-                dailyReports = docSnap.exists() ? docSnap.data() : {};
-                renderDashboard(); // Re-render dashboard to show daily stats
-            }, (error) => console.error("Error listening to daily reports:", error));
-
-            // 3. Listen for Accumulated Scores
-            accumulatedSnapshotUnsub = onSnapshot(collection(db, ACCUMULATED_COL_PATH), (snapshot) => {
-                accumulatedScores = {};
-                snapshot.forEach(doc => {
-                    accumulatedScores[doc.id] = doc.data();
-                });
-                renderDashboard(); // Re-render dashboard to show cumulative scores
-            }, (error) => console.error("Error listening to accumulated scores:", error));
-        }
-
-        /**
-         * Updates the header school information.
-         */
-        function renderSchoolInfo() {
-            const info = config.schoolInfo;
-            document.getElementById('school-name-display').textContent = info.name || 'Ultra Tracker';
-            document.getElementById('school-contact-display').textContent = info.address || info.phone || info.website || 'No contact info set';
-
-            const logoImg = document.getElementById('school-logo-img');
-            const logoText = document.getElementById('school-logo-text');
-
-            if (info.logoUrl) {
-                logoImg.src = info.logoUrl;
-                logoImg.classList.remove('hidden');
-                logoText.classList.add('hidden');
-            } else {
-                logoImg.classList.add('hidden');
-                logoText.classList.remove('hidden');
-                logoText.textContent = info.logoText || 'T.';
-            }
-        }
-
-        /**
-         * Renders the entire class performance dashboard.
-         */
-        function renderDashboard() {
-            const container = document.getElementById('departments-container');
-            container.innerHTML = ''; // Clear previous content
-
-            if (config.departments.length === 0) {
-                document.getElementById('empty-config-message').classList.remove('hidden');
-                return;
-            }
-            document.getElementById('empty-config-message').classList.add('hidden');
-
-            const isToday = formatToISODate(selectedDate) === formatToISODate(new Date());
-
-            config.departments.forEach(dept => {
-                const deptElement = document.createElement('section');
-                deptElement.className = 'mb-8 p-4 bg-white rounded-xl shadow-lg';
-                
-                let deptContent = `
-                    <h2 class="text-xl sm:text-2xl font-extrabold text-gray-800 mb-4 pb-2 border-b border-gray-200">${dept.name}</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                `;
-                
-                // Group classes by type (Girls/Boys)
-                const girlsClasses = dept.classes.filter(cls => cls.type === 'Girls');
-                const boysClasses = dept.classes.filter(cls => cls.type === 'Boys');
-
-                // Helper to render class section
-                const renderClassSection = (title, classes) => {
-                    if (classes.length === 0) return '';
-                    let sectionHtml = `
-                        <div class="space-y-4">
-                            <h3 class="text-lg font-bold text-gray-600 border-b border-dashed pb-1">${title} Section</h3>
-                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    `;
-                    classes.forEach(cls => {
-                        sectionHtml += renderClassCard(cls, isToday);
-                    });
-                    sectionHtml += `</div></div>`;
-                    return sectionHtml;
-                };
-
-                deptContent += renderClassSection('Girls', girlsClasses);
-                deptContent += renderClassSection('Boys', boysClasses);
-
-                deptContent += `</div>`;
-                deptElement.innerHTML = deptContent;
-                container.appendChild(deptElement);
-            });
-        }
-
-        /**
-         * Renders a single class card HTML.
-         */
-        function renderClassCard(cls, isToday) {
-            const dailyData = dailyReports[cls.id] || { total: 0, present: 0, prBrought: 0, prSigned: 0, dcs: 0, exists: false };
-            const accumulatedData = accumulatedScores[cls.id] || { totalScore: 0, daysCount: 0, averageScore: 0 };
-
-            const dailyDCS = dailyData.dcs || 0;
-            const avgScore = accumulatedData.averageScore || 0;
-
-            // Determine cumulative performance level
-            let levelClass = 'level-poor'; // Default
-            if (avgScore >= 90) levelClass = 'level-excellent';
-            else if (avgScore >= 80) levelClass = 'level-good';
-            else if (avgScore >= 70) levelClass = 'level-fair';
-            
-            const buttonClass = isToday ? 'hover:shadow-lg hover:ring-2 hover:ring-blue-500 hover:scale-[1.02] active:scale-[0.98]' : 'cursor-not-allowed opacity-70';
-            const actionText = isToday ? (dailyData.exists ? 'Edit' : 'Enter') : 'View';
-
-            return `
-                <div class="class-card bg-white p-3 rounded-xl shadow-md border-l-4 ${levelClass} transition duration-150 transform">
-                    <button 
-                        onclick="window.app.openReportModal('${cls.id}', '${cls.name} - ${cls.type}')" 
-                        class="w-full text-left focus:outline-none rounded-lg p-1 -m-1 ${buttonClass}"
-                        ${!isToday ? 'disabled' : ''}
-                        title="${isToday ? actionText + ' Report' : 'Viewing historical data only'}">
-                        
-                        <!-- Top Row: Name and Average -->
-                        <div class="flex justify-between items-start mb-1">
-                            <span class="text-sm font-extrabold text-gray-800 truncate max-w-[70%]">${cls.name} (${cls.type.charAt(0)})</span>
-                            <span class="text-2xs font-bold text-gray-500 text-right leading-none whitespace-nowrap">
-                                <span class="block text-4xs font-normal">Avg.</span>
-                                ${avgScore.toFixed(1)}%
-                            </span>
-                        </div>
-
-                        <!-- Daily Stats (3x font) -->
-                        <div class="grid grid-cols-4 gap-1 text-center bg-gray-50 rounded p-1 mb-2">
-                            <div title="Total Students"><span class="block text-4xs text-gray-500">T</span><span class="block text-xs font-bold">${dailyData.total}</span></div>
-                            <div title="Present Today (50%)"><span class="block text-4xs text-gray-500">P</span><span class="block text-xs font-bold">${dailyData.present}</span></div>
-                            <div title="PR Brought (25%)"><span class="block text-4xs text-gray-500">PR</span><span class="block text-xs font-bold">${dailyData.prBrought}</span></div>
-                            <div title="PR Signed (25%)"><span class="block text-4xs text-gray-500">PRS</span><span class="block text-xs font-bold">${dailyData.prSigned}</span></div>
-                        </div>
-
-                        <!-- Daily Class Score and Progress Bar -->
-                        <div class="flex justify-between items-center mt-1">
-                            <span class="text-3xs font-semibold text-gray-700 leading-none">DCS: ${dailyDCS.toFixed(1)}%</span>
-                            <div class="progress-bar-bg flex-grow ml-2">
-                                <div class="h-full rounded-full transition-all duration-300 ${levelClass}-bg" style="width: ${dailyDCS.toFixed(1)}%;"></div>
-                            </div>
-                        </div>
-                        
-                        <!-- Action Indicator -->
-                        <div class="text-4xs text-center mt-2 font-bold ${dailyData.exists ? 'text-green-600' : 'text-blue-500'}">
-                            ${dailyData.exists ? '<i class="ph-check-circle-fill mr-1"></i>Reported' : actionText}
-                        </div>
-                    </button>
-                </div>
-            `;
-        }
-        
-        // --- MODAL & UI UTILITIES ---
-
-        /**
-         * Displays a transient notification message.
-         */
-        function showNotification(message, type = 'info') {
-            const box = document.getElementById('message-box');
-            const text = document.getElementById('message-text');
-            
-            box.classList.remove('opacity-100', 'translate-x-0', 'bg-red-500', 'bg-green-500', 'bg-gray-800');
-            box.classList.add('opacity-0', 'translate-x-full');
-
-            if (type === 'error') {
-                box.classList.add('bg-red-500');
-            } else if (type === 'success') {
-                box.classList.add('bg-green-500');
-            } else {
-                box.classList.add('bg-gray-800');
-            }
-
-            text.textContent = message;
-
-            setTimeout(() => {
-                box.classList.add('opacity-100', 'translate-x-0');
-            }, 50); // Small delay to reset animation
-
-            setTimeout(() => {
-                box.classList.remove('opacity-100', 'translate-x-0');
-                box.classList.add('opacity-0', 'translate-x-full');
-            }, 4000);
-        }
-
-        /**
-         * Opens a generic modal with a fade/scale animation.
-         */
-        function openModal(modalId, contentId) {
-            const modal = document.getElementById(modalId);
-            const content = document.getElementById(contentId);
-            modal.classList.remove('hidden');
-            // Force reflow to ensure transition starts
-            void content.offsetWidth; 
-            setTimeout(() => {
-                content.classList.remove('scale-95', 'opacity-0');
-                content.classList.add('scale-100', 'opacity-100');
-            }, 10);
-        }
-
-        /**
-         * Closes a generic modal with a fade/scale animation.
-         */
-        function closeModal(modalId) {
-            const modal = document.getElementById(modalId);
-            const content = modal.querySelector('div:not([class*="fixed"])'); // Select the content wrapper
-
-            content.classList.remove('scale-100', 'opacity-100');
-            content.classList.add('scale-95', 'opacity-0');
-            
-            setTimeout(() => {
-                modal.classList.add('hidden');
-            }, 300); // Match transition duration
-        }
-
-        /**
-         * Custom confirmation dialog, returns a promise.
-         */
-        function customConfirm(title, message, buttonText = 'Proceed') {
-            return new Promise((resolve, reject) => {
-                resolveConfirm = resolve;
-                rejectConfirm = reject;
-
-                document.getElementById('confirm-title').textContent = title;
-                document.getElementById('confirm-message').textContent = message;
-                document.getElementById('confirm-action-button').textContent = buttonText;
-                
-                openModal('confirm-modal', 'confirm-content-wrapper');
-            });
-        }
-        
-        /** Resolves the current confirmation promise. */
-        function confirmResolve() {
-            closeModal('confirm-modal');
-            if (resolveConfirm) resolveConfirm(true);
-        }
-
-        /** Rejects the current confirmation promise. */
-        function confirmReject() {
-            closeModal('confirm-modal');
-            if (rejectConfirm) rejectConfirm(false);
-        }
-
-        // --- AUTHENTICATION HANDLERS ---
-        
-        /**
-         * Updates the text and action of the auth button.
-         */
-        function updateAuthButton(text) {
-            const button = document.getElementById('auth-button');
-            const icon = button.querySelector('i');
-            button.title = text;
-
-            if (text === 'Sign In') {
-                button.innerHTML = '<i class="ph-user-circle-fill text-xl"></i>';
-                button.onclick = window.app.signInWithGoogle;
-                button.classList.remove('bg-red-500');
-                button.classList.add('bg-blue-500');
-            } else {
-                button.innerHTML = '<i class="ph-sign-out-fill text-xl"></i>';
-                button.onclick = window.app.handleAuthClick;
-                button.classList.remove('bg-blue-500');
-                button.classList.add('bg-red-500');
-            }
-        }
-
-        /**
-         * Handles the click on the Auth button (Sign In or Sign Out).
-         */
-        async function handleAuthClick() {
-            if (userId && !auth.currentUser.isAnonymous) {
-                // User is signed in with Google
-                try {
-                    const result = await customConfirm('Sign Out', 'Are you sure you want to sign out?', 'Sign Out');
-                    if (result) {
-                        await signOut(auth);
-                        showNotification('Signed out successfully. You are now signed in anonymously.', 'info');
+                // 2. Set up Auth State Listener
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        if (user.isAnonymous) {
+                            document.getElementById('auth-icon').classList.replace('ph-user', 'ph-user-gear');
+                            document.getElementById('sign-out-button').classList.add('hidden');
+                        } else {
+                            document.getElementById('auth-icon').classList.replace('ph-user-gear', 'ph-google-logo');
+                            document.getElementById('sign-out-button').classList.remove('hidden');
+                            document.getElementById('save-config-button').disabled = false;
+                            document.getElementById('save-status').classList.add('hidden');
+                        }
+                    } else {
+                        userId = 'anon'; // Should not happen with anonymous sign-in fallback
                     }
-                } catch (e) {
-                    console.log("Sign out cancelled.");
-                }
-            } else if (userId && auth.currentUser.isAnonymous) {
-                // User is signed in anonymously (or with initial token) - Copy User ID
-                try {
-                    // Use a temporary input element for copying due to iframe restrictions
-                    const tempInput = document.createElement('input');
-                    tempInput.value = userId;
-                    document.body.appendChild(tempInput);
-                    tempInput.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(tempInput);
-                    showNotification('User ID copied to clipboard!', 'success');
-                } catch (err) {
-                    console.error('Could not copy text: ', err);
-                    showNotification('Could not copy User ID.', 'error');
-                }
-            } else {
-                // Not signed in - prompt for Google Sign In
-                await signInWithGoogle();
+                    document.getElementById('user-id-display').textContent = `User ID: ${userId}`;
+                    isAuthReady = true;
+                    // Once Auth is ready, start listening for data
+                    setupDataListeners();
+                });
+
+                // 3. Set up Date Picker
+                const today = formatDate(new Date());
+                document.getElementById('date-picker').setAttribute('max', today);
+                document.getElementById('date-picker').value = today;
+                appInterface.setDate(today);
+
+            } catch (e) {
+                console.error("Firebase Initialization Failed:", e);
             }
         }
 
-        /**
-         * Initiates Google Sign In.
-         */
         async function signInWithGoogle() {
             try {
                 const provider = new GoogleAuthProvider();
                 await signInWithPopup(auth, provider);
-                showNotification('Signed in with Google successfully!', 'success');
+                console.log("Google Sign-In successful.");
             } catch (error) {
-                console.error("Google Sign In Error:", error);
-                showNotification(`Sign In Failed: ${error.message}`, 'error');
+                console.error("Google Sign-In failed:", error.code, error.message);
+                // Handle different error codes if needed (e.g., popup closed by user)
             }
         }
 
-        // --- REPORT LOGIC ---
+        async function signOutUser() {
+            try {
+                await signOut(auth);
+                // After sign out, sign in anonymously as fallback
+                await signInAnonymously(auth);
+                document.getElementById('save-config-button').disabled = true;
+                document.getElementById('save-status').classList.remove('hidden');
+                console.log("Signed out and signed in anonymously.");
+            } catch (error) {
+                console.error("Sign Out failed:", error);
+            }
+        }
+        
+        // --- DATA PATHS ---
+        const CONFIG_DOC_PATH = `artifacts/${appId}/public/data/config/schoolConfig`;
+        const REPORTS_COLLECTION_PATH = `artifacts/${appId}/public/data/daily_attendance_reports`;
+        const ACCUMULATED_SCORES_COLLECTION_PATH = `artifacts/${appId}/public/data/accumulated_class_scores`;
+        const STORAGE_LOGO_PATH = `artifacts/${appId}/school_logo.png`;
 
-        let currentReportClassId = null;
 
-        /**
-         * Opens the modal for daily report entry.
-         */
-        function openReportModal(classId, className) {
-            currentReportClassId = classId;
-            const isToday = formatToISODate(selectedDate) === formatToISODate(new Date());
+        // --- FIREBASE LISTENERS ---
+        
+        function setupDataListeners() {
+            if (!db || !isAuthReady) return;
 
-            document.getElementById('report-class-name').textContent = className;
-            document.getElementById('report-date-display').textContent = selectedDate.toDateString();
-
-            const submitButton = document.getElementById('report-submit-button');
-            const deleteButton = document.getElementById('report-delete-button');
-            const formInputs = document.querySelectorAll('#report-form input');
-
-            // Find existing data for the selected class and date
-            const data = dailyReports[classId] || { total: '', present: '', prBrought: '', prSigned: '', dcs: 0, exists: false };
-
-            document.getElementById('report-total').value = data.total || '';
-            document.getElementById('report-present').value = data.present || '';
-            document.getElementById('report-pr-brought').value = data.prBrought || '';
-            document.getElementById('report-pr-signed').value = data.prSigned || '';
-
-            recalculateDCS();
-
-            if (isToday) {
-                // Enable inputs for today's entry/edit
-                formInputs.forEach(input => input.disabled = false);
-                submitButton.classList.remove('hidden');
-                deleteButton.classList.add('hidden'); // Only show delete if data exists
-                
-                if (data.exists) {
-                    document.getElementById('report-submit-text').textContent = 'Update Report';
-                    deleteButton.classList.remove('hidden');
+            // 1. Config Listener
+            onSnapshot(doc(db, CONFIG_DOC_PATH), (docSnap) => {
+                if (docSnap.exists()) {
+                    config = docSnap.data().config || { schoolInfo: {}, departments: [] };
+                    console.log("Configuration updated.");
                 } else {
-                    document.getElementById('report-submit-text').textContent = 'Save Report';
+                    config = { schoolInfo: {}, departments: [] };
+                    console.log("Configuration document not found. Using default empty config.");
+                }
+                updateSchoolInfoUI();
+                renderDashboard();
+                renderDepartmentsInSettings();
+            }, (error) => {
+                console.error("Error listening to config:", error);
+            });
+
+            // 2. Accumulated Scores Listener
+            onSnapshot(collection(db, ACCUMULATED_SCORES_COLLECTION_PATH), (querySnapshot) => {
+                accumulatedScores = {};
+                querySnapshot.forEach((doc) => {
+                    accumulatedScores[doc.id] = doc.data();
+                });
+                console.log("Accumulated scores updated.");
+                renderDashboard();
+            }, (error) => {
+                console.error("Error listening to accumulated scores:", error);
+            });
+
+            // 3. Daily Reports Listener (for the selected date)
+            onSnapshot(doc(db, REPORTS_COLLECTION_PATH, selectedDate), (docSnap) => {
+                dailyReports = docSnap.exists() ? docSnap.data() : {};
+                console.log(`Daily reports for ${selectedDate} updated.`);
+                renderDashboard();
+            }, (error) => {
+                console.error(`Error listening to daily reports for ${selectedDate}:`, error);
+            });
+        }
+        
+        // --- UI RENDERING FUNCTIONS ---
+
+        function updateSchoolInfoUI() {
+            const info = config.schoolInfo || {};
+            const nameEl = document.getElementById('school-name-display');
+            const addrEl = document.getElementById('school-address-display');
+            const logoTextEl = document.getElementById('school-logo-text');
+            const logoImgEl = document.getElementById('school-logo-img');
+
+            nameEl.textContent = info.name || 'School Tracker';
+            addrEl.textContent = info.address || 'Address: N/A';
+            
+            // Logo logic
+            const logoText = info.logoText || 'T.';
+            logoTextEl.textContent = logoText;
+            
+            if (info.logoUrl) {
+                logoImgEl.src = info.logoUrl;
+                logoImgEl.classList.remove('hidden');
+                logoTextEl.classList.add('hidden');
+                logoImgEl.onerror = function() {
+                    logoImgEl.classList.add('hidden');
+                    logoTextEl.classList.remove('hidden');
                 }
             } else {
-                // Disable inputs for viewing historical data
-                formInputs.forEach(input => input.disabled = true);
-                submitButton.classList.add('hidden');
-                deleteButton.classList.add('hidden');
+                logoImgEl.classList.add('hidden');
+                logoTextEl.classList.remove('hidden');
             }
-
-            openModal('report-modal', 'report-content-wrapper');
         }
 
-        /**
-         * Recalculates the Daily Class Score (DCS) based on current inputs.
-         */
+        function renderDashboard() {
+            const dashboard = document.getElementById('tracker-dashboard');
+            dashboard.innerHTML = ''; // Clear existing content
+            document.getElementById('loading-indicator').classList.add('hidden');
+            
+            if (config.departments.length === 0) {
+                document.getElementById('no-config-message').classList.remove('hidden');
+                return;
+            } else {
+                document.getElementById('no-config-message').classList.add('hidden');
+            }
+
+            // Iterate through departments and render sections and classes
+            config.departments.forEach(dept => {
+                dashboard.innerHTML += `
+                    <div class="space-y-4">
+                        <h2 class="text-2xl font-bold text-gray-800 border-b-2 border-emerald-300 pb-2">${dept.name}</h2>
+                        <div id="dept-${dept.id}-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            <!-- Class cards go here -->
+                        </div>
+                    </div>
+                `;
+                
+                const grid = document.getElementById(`dept-${dept.id}-grid`);
+                
+                if (!dept.classes || dept.classes.length === 0) {
+                     grid.innerHTML = `<p class="text-gray-500 col-span-full">No classes configured for this department.</p>`;
+                     return;
+                }
+
+                dept.classes.forEach(cls => {
+                    const classId = slugify(`${cls.name}-${cls.type}`);
+                    const report = dailyReports[classId];
+                    const accScore = accumulatedScores[classId] || { averageScore: 0, daysCount: 0 };
+                    
+                    const score = report ? report.dcs : 0;
+                    const status = report ? 'Reported' : 'Enter Report';
+                    const statusColor = report ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700';
+
+                    // Determine overall performance color based on cumulative average
+                    let avgColor = 'border-gray-300'; // Default
+                    if (accScore.averageScore >= 90) {
+                        avgColor = 'border-emerald-500'; // Excellent
+                    } else if (accScore.averageScore >= 80) {
+                        avgColor = 'border-blue-500'; // Good
+                    } else if (accScore.averageScore >= 70) {
+                        avgColor = 'border-amber-500'; // Fair
+                    } else if (accScore.averageScore > 0) {
+                        avgColor = 'border-red-500'; // Poor
+                    }
+
+                    const cardHtml = `
+                        <div class="bg-white p-4 rounded-xl shadow-lg hover:shadow-xl transition transform hover:scale-[1.01] border-l-8 ${avgColor} flex flex-col justify-between">
+                            
+                            <!-- Top Row: Class Name & Cumulative Score -->
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="flex-1">
+                                    <h3 class="text-xl font-bold text-gray-800 leading-tight">${cls.name} <span class="text-sm font-medium text-gray-500">(${cls.type.charAt(0)})</span></h3>
+                                    <p class="text-xs text-gray-400 mt-0.5">${dept.name}</p>
+                                </div>
+                                <div class="text-right ml-4">
+                                    <p class="text-3xl font-extrabold text-gray-800 leading-none">${accScore.averageScore.toFixed(0)}<span class="text-lg font-bold">%</span></p>
+                                    <p class="text-4xs text-gray-500 mt-1">AVG. (${accScore.daysCount} days)</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Today's Report Status -->
+                            <div class="mb-3">
+                                <div class="flex justify-between items-center text-xs font-medium text-gray-500 mb-1">
+                                    <span>Today's DCS</span>
+                                    <span>${score}%</span>
+                                </div>
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar-fill ${score >= 70 ? 'bg-emerald-500' : score > 0 ? 'bg-red-500' : 'bg-gray-400'}" 
+                                         style="width: ${score}%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Metrics Summary and Action Button -->
+                            <div class="grid grid-cols-4 gap-2 text-center text-3xs font-medium text-gray-500 border-t pt-3">
+                                <div><span class="text-gray-700 font-bold block text-sm">${report?.total ?? '--'}</span>Total</div>
+                                <div><span class="text-gray-700 font-bold block text-sm">${report?.present ?? '--'}</span>Pres.</div>
+                                <div><span class="text-gray-700 font-bold block text-sm">${report?.prBrought ?? '--'}</span>PR Brt.</div>
+                                <div><span class="text-gray-700 font-bold block text-sm">${report?.prSigned ?? '--'}</span>PR Sgn.</div>
+                            </div>
+
+                            <button onclick="app.openReportModal('${classId}', '${cls.name}', '${cls.type}')"
+                                    class="mt-4 w-full py-2 ${statusColor} rounded-lg text-sm font-semibold transition hover:opacity-80 active:scale-[0.98]">
+                                <i class="ph-bold ph-pencil-simple text-sm mr-1"></i> ${status}
+                            </button>
+                        </div>
+                    `;
+                    grid.innerHTML += cardHtml;
+                });
+            });
+        }
+        
+        function renderDepartmentsInSettings() {
+            const list = document.getElementById('departments-list');
+            list.innerHTML = ''; // Clear
+            
+            if (config.departments.length === 0) {
+                document.getElementById('no-departments-message').classList.remove('hidden');
+                return;
+            } else {
+                document.getElementById('no-departments-message').classList.add('hidden');
+            }
+
+            config.departments.forEach((dept, deptIndex) => {
+                // Department Wrapper
+                const deptDiv = document.createElement('div');
+                deptDiv.className = 'border border-gray-200 rounded-xl shadow-sm overflow-hidden';
+                deptDiv.id = `dept-config-${dept.id}`;
+                
+                // Department Header
+                deptDiv.innerHTML = `
+                    <div class="p-4 bg-gray-50 flex justify-between items-center space-x-4">
+                        <div class="flex items-center space-x-2 w-3/5">
+                            <i class="ph-fill ph-book-open text-xl text-emerald-600 shrink-0"></i>
+                            <input type="text" value="${dept.name}" oninput="app.updateDepartmentName('${dept.id}', this.value)"
+                                   class="font-semibold text-lg border-b border-transparent focus:border-emerald-500 w-full bg-transparent p-1 -m-1 transition" 
+                                   placeholder="Department Name">
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="app.addClass('${dept.id}')" class="py-1 px-3 bg-blue-500 text-white text-xs font-medium rounded-full hover:bg-blue-600 transition active:scale-95">
+                                <i class="ph-fill ph-plus text-sm"></i> Class
+                            </button>
+                            <button onclick="app.removeDepartment('${dept.id}')" class="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100 transition">
+                                <i class="ph-fill ph-x text-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-4 space-y-3" id="classes-list-${dept.id}">
+                        <!-- Classes will be rendered here -->
+                    </div>
+                `;
+                list.appendChild(deptDiv);
+                
+                // Render Classes
+                const classesList = document.getElementById(`classes-list-${dept.id}`);
+                if (!dept.classes || dept.classes.length === 0) {
+                    classesList.innerHTML = `<p class="text-center text-sm text-gray-400">No classes in this department.</p>`;
+                } else {
+                    dept.classes.forEach((cls, clsIndex) => {
+                        const classDiv = document.createElement('div');
+                        classDiv.className = 'flex items-center space-x-2 p-2 border border-gray-100 rounded-lg bg-white shadow-xs';
+                        classDiv.id = `class-config-${dept.id}-${cls.id}`;
+                        classDiv.innerHTML = `
+                            <div class="w-3/5">
+                                <input type="text" value="${cls.name}" oninput="app.updateClassName('${dept.id}', '${cls.id}', this.value)"
+                                       class="text-sm font-medium border-b border-transparent focus:border-blue-500 w-full p-1 -m-1 transition"
+                                       placeholder="Class Name (e.g., 1A)">
+                            </div>
+                            <div class="w-2/5">
+                                <select onchange="app.updateClassType('${dept.id}', '${cls.id}', this.value)"
+                                        class="text-xs border-gray-300 rounded-md shadow-sm w-full py-1 px-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="Girls" ${cls.type === 'Girls' ? 'selected' : ''}>Girls Section</option>
+                                    <option value="Boys" ${cls.type === 'Boys' ? 'selected' : ''}>Boys Section</option>
+                                    <option value="Co-ed" ${cls.type === 'Co-ed' ? 'selected' : ''}>Co-ed</option>
+                                </select>
+                            </div>
+                            <button onclick="app.removeClass('${dept.id}', '${cls.id}')" 
+                                    class="text-red-400 hover:text-red-600 p-1 rounded-full hover:bg-red-100 transition shrink-0">
+                                <i class="ph-fill ph-minus-circle text-lg"></i>
+                            </button>
+                        `;
+                        classesList.appendChild(classDiv);
+                    });
+                }
+            });
+        }
+
+
+        // --- REPORT INPUT LOGIC ---
+
+        function openReportModal(classId, className, classType) {
+            // Get today's report data
+            const report = dailyReports[classId] || {};
+            const isReported = !!dailyReports[classId];
+
+            document.getElementById('report-modal-class-id').value = classId;
+            document.getElementById('report-modal-class-name').textContent = `${className} (${classType})`;
+            document.getElementById('report-modal-date').textContent = selectedDate;
+
+            document.getElementById('report-total').value = report.total ?? '';
+            document.getElementById('report-present').value = report.present ?? '';
+            document.getElementById('report-pr-brought').value = report.prBrought ?? '';
+            document.getElementById('report-pr-signed').value = report.prSigned ?? '';
+            document.getElementById('report-dcs-display').textContent = report.dcs !== undefined ? `${report.dcs}%` : '--%';
+            
+            // Show/Hide delete button
+            const deleteBtn = document.getElementById('delete-report-button');
+            if (isReported) {
+                deleteBtn.classList.remove('hidden');
+                document.getElementById('save-report-button').textContent = 'Update Report';
+            } else {
+                deleteBtn.classList.add('hidden');
+                document.getElementById('save-report-button').textContent = 'Save Report';
+            }
+
+            appInterface.openModal('report-modal');
+        }
+
         function recalculateDCS() {
             const total = parseInt(document.getElementById('report-total').value) || 0;
             const present = parseInt(document.getElementById('report-present').value) || 0;
             const prBrought = parseInt(document.getElementById('report-pr-brought').value) || 0;
             const prSigned = parseInt(document.getElementById('report-pr-signed').value) || 0;
-            const dcsDisplay = document.getElementById('report-dcs-display');
-            const submitButton = document.getElementById('report-submit-button');
-            const errorElement = document.getElementById('report-error-message');
+
+            const dcs = calculateDCS(total, present, prBrought, prSigned);
+            document.getElementById('report-dcs-display').textContent = `${dcs}%`;
             
-            errorElement.classList.add('hidden');
-
-            if (total === 0) {
-                dcsDisplay.textContent = '0.0%';
-                submitButton.disabled = true;
-                if (present > 0 || prBrought > 0 || prSigned > 0) {
-                    errorElement.textContent = "Total Students must be greater than 0 if other metrics are greater than 0.";
-                    errorElement.classList.remove('hidden');
-                } else if (document.getElementById('report-present').value !== '' && formatToISODate(selectedDate) === formatToISODate(new Date())) {
-                    // Allow saving 0s if it's an empty submission
-                    submitButton.disabled = false;
-                }
-                return;
-            }
-
+            // Basic validation
             if (present > total || prBrought > total || prSigned > total) {
-                dcsDisplay.textContent = '0.0%';
-                submitButton.disabled = true;
-                errorElement.textContent = "Present, PR Brought, and PR Signed cannot exceed Total Students.";
-                errorElement.classList.remove('hidden');
-                return;
+                document.getElementById('report-dcs-display').textContent = 'ERR';
+                document.getElementById('report-dcs-display').classList.add('text-red-600');
+                document.getElementById('save-report-button').disabled = true;
+            } else {
+                document.getElementById('report-dcs-display').classList.remove('text-red-600');
+                document.getElementById('save-report-button').disabled = total === 0;
             }
-
-            // Calculation: (Present/Total * 50%) + (PR Brought/Total * 25%) + (PR Signed/Total * 25%)
-            const dcs = (present / total * 0.5 + prBrought / total * 0.25 + prSigned / total * 0.25) * 100;
-            
-            dcsDisplay.textContent = `${dcs.toFixed(1)}%`;
-            submitButton.disabled = false;
         }
-
-        /**
-         * Saves or updates a daily report and updates accumulated scores using a transaction.
-         */
+        
         async function updateReportEntry() {
-            if (!currentReportClassId) return;
-
-            const submitButton = document.getElementById('report-submit-button');
-            const submitText = document.getElementById('report-submit-text');
-            const submitSpinner = document.getElementById('report-submit-spinner');
-            submitButton.disabled = true;
-            submitText.classList.add('hidden');
-            submitSpinner.classList.remove('hidden');
-
-            const classId = currentReportClassId;
+            const classId = document.getElementById('report-modal-class-id').value;
             const total = parseInt(document.getElementById('report-total').value) || 0;
             const present = parseInt(document.getElementById('report-present').value) || 0;
             const prBrought = parseInt(document.getElementById('report-pr-brought').value) || 0;
             const prSigned = parseInt(document.getElementById('report-pr-signed').value) || 0;
+            const dcs = calculateDCS(total, present, prBrought, prSigned);
 
-            // Re-run validation one last time
-            if (total < 0 || present < 0 || prBrought < 0 || prSigned < 0 || 
-                present > total || prBrought > total || prSigned > total) {
-                showNotification('Input error. Check the values.', 'error');
-                submitButton.disabled = false;
-                submitText.classList.remove('hidden');
-                submitSpinner.classList.add('hidden');
+            if (present > total || prBrought > total || prSigned > total || total === 0) {
+                await customConfirm('Validation Error', 'Total strength must be greater than zero, and all attendance/report counts must be less than or equal to the total strength.', false);
                 return;
             }
 
-            const dcs = (total === 0 && (present > 0 || prBrought > 0 || prSigned > 0)) ? 0 : 
-                        (total === 0) ? 0 : // Allow saving 0/0/0/0
-                        (present / total * 0.5 + prBrought / total * 0.25 + prSigned / total * 0.25) * 100;
+            const newReport = { total, present, prBrought, prSigned, dcs };
+            const oldReport = dailyReports[classId] || null;
 
-            const reportISO = formatToISODate(selectedDate);
-            const reportDocRef = doc(db, `artifacts/${appId}/public/data/daily_attendance_reports/${reportISO}`);
-            const accumulatedDocRef = doc(db, ACCUMULATED_COL_PATH, classId);
-            
-            const oldReport = dailyReports[classId] || { dcs: 0, exists: false };
-            const newReport = { total, present, prBrought, prSigned, dcs, timestamp: serverTimestamp(), exists: true };
+            const dailyDocRef = doc(db, REPORTS_COLLECTION_PATH, selectedDate);
+            const accumDocRef = doc(db, ACCUMULATED_SCORES_COLLECTION_PATH, classId);
 
             try {
                 await runTransaction(db, async (transaction) => {
-                    // 1. Get the current accumulated score
-                    const accumulatedSnap = await transaction.get(accumulatedDocRef);
-                    const currentAccumulated = accumulatedSnap.data() || { totalScore: 0, daysCount: 0 };
-                    
-                    let newTotalScore = currentAccumulated.totalScore;
-                    let newDaysCount = currentAccumulated.daysCount;
-                    
-                    // 2. Adjust accumulated score based on old report (if it existed)
-                    if (oldReport.exists) {
-                        // Subtract old score before adding new one
-                        newTotalScore -= oldReport.dcs;
+                    // 1. Update Daily Report Document
+                    transaction.set(dailyDocRef, { [classId]: newReport }, { merge: true });
+
+                    // 2. Update Accumulated Scores Document
+                    const accumDoc = await transaction.get(accumDocRef);
+                    let { totalScore = 0, daysCount = 0 } = accumDoc.exists() ? accumDoc.data() : {};
+
+                    // Deduct old score if it existed for this day
+                    if (oldReport) {
+                        totalScore -= oldReport.dcs;
+                        // daysCount only decreases if the old report was the ONLY report for that day
+                        // This complex logic is handled by setting merge:true on the dailyDocRef
+                        // To keep it simple and safe for now: we always count reports as updates, not new entries.
+                        // We will adjust only the totalScore for updates, and update daysCount only on first save/delete.
+                        // However, since we track oldReport, we can assume daysCount is stable for updates.
+                        // A new entry is when oldReport is null AND daysCount is incremented.
                     } else {
-                        // This is a new day's entry
-                        newDaysCount += 1;
+                        daysCount += 1; // Only increment daysCount for the first entry of this class on this date
                     }
 
-                    // 3. Add the new score
-                    newTotalScore += newReport.dcs;
-                    
-                    // 4. Calculate new average
-                    const newAverageScore = newDaysCount > 0 ? newTotalScore / newDaysCount : 0;
-                    
-                    // 5. Update the Accumulated Score document
-                    transaction.set(accumulatedDocRef, {
-                        classId: classId,
-                        totalScore: newTotalScore,
-                        daysCount: newDaysCount,
-                        averageScore: newAverageScore,
-                        lastUpdate: serverTimestamp()
-                    }, { merge: true });
+                    // Add new score
+                    totalScore += dcs;
 
-                    // 6. Update the Daily Report document
-                    transaction.set(reportDocRef, {
-                        [classId]: newReport
-                    }, { merge: true });
+                    // Calculate new average
+                    const averageScore = daysCount > 0 ? (totalScore / daysCount) : 0;
+
+                    transaction.set(accumDocRef, { 
+                        totalScore: totalScore, 
+                        daysCount: daysCount, 
+                        averageScore: averageScore 
+                    });
                 });
-
-                showNotification(oldReport.exists ? 'Report updated successfully!' : 'Report saved successfully!', 'success');
-                closeModal('report-modal');
-
-            } catch (e) {
-                console.error("Transaction failed:", e);
-                showNotification(`Save Failed: ${e.message}`, 'error');
-            } finally {
-                submitButton.disabled = false;
-                submitText.classList.remove('hidden');
-                submitSpinner.classList.add('hidden');
+                
+                appInterface.closeModal('report-modal');
+                console.log("Report and Accumulated Score updated successfully in a transaction.");
+            } catch (error) {
+                console.error("Transaction failed: ", error);
+                await customConfirm('Save Failed', 'There was an error saving the report and updating the cumulative score. Please try again.', false);
             }
         }
-
-        /**
-         * Deletes a daily report and updates accumulated scores using a transaction.
-         */
+        
         async function deleteReportEntry() {
-            if (!currentReportClassId) return;
+            const classId = document.getElementById('report-modal-class-id').value;
+            const oldReport = dailyReports[classId];
 
-            const classId = currentReportClassId;
-            const reportISO = formatToISODate(selectedDate);
-            const reportDocRef = doc(db, `artifacts/${appId}/public/data/daily_attendance_reports/${reportISO}`);
-            const accumulatedDocRef = doc(db, ACCUMULATED_COL_PATH, classId);
-            
-            const oldReport = dailyReports[classId] || { dcs: 0, exists: false };
-
-            if (!oldReport.exists) {
-                closeModal('report-modal');
+            if (!oldReport) {
+                appInterface.closeModal('report-modal');
                 return;
             }
+            
+            const confirmed = await customConfirm(
+                'Confirm Deletion', 
+                'Are you sure you want to delete this daily report entry? This will also update the class\'s cumulative performance score.', 
+                true
+            );
+            
+            if (!confirmed) return;
 
-            try {
-                const result = await customConfirm('Delete Report', `Are you sure you want to delete the report for ${reportISO}? This will update the class's average score.`, 'Delete');
-                if (!result) return;
-            } catch (e) {
-                return; // Cancellation
-            }
+
+            const dailyDocRef = doc(db, REPORTS_COLLECTION_PATH, selectedDate);
+            const accumDocRef = doc(db, ACCUMULATED_SCORES_COLLECTION_PATH, classId);
 
             try {
                 await runTransaction(db, async (transaction) => {
-                    // 1. Get the current accumulated score
-                    const accumulatedSnap = await transaction.get(accumulatedDocRef);
-                    const currentAccumulated = accumulatedSnap.data() || { totalScore: 0, daysCount: 0 };
+                    // 1. Update Daily Report Document (remove the field)
+                    // Firestore doesn't support deleting nested fields using transaction.update() cleanly without a special sentinel, 
+                    // which is complex for a map field like this. A simple and safe alternative: read, update, and rewrite the whole daily report document.
                     
-                    let newTotalScore = currentAccumulated.totalScore - oldReport.dcs;
-                    let newDaysCount = currentAccumulated.daysCount - 1;
-                    
-                    // Prevent negative count/score
-                    newTotalScore = Math.max(0, newTotalScore);
-                    newDaysCount = Math.max(0, newDaysCount);
-                    
-                    // 2. Calculate new average
-                    const newAverageScore = newDaysCount > 0 ? newTotalScore / newDaysCount : 0;
-                    
-                    // 3. Update the Accumulated Score document
-                    transaction.set(accumulatedDocRef, {
-                        classId: classId,
-                        totalScore: newTotalScore,
-                        daysCount: newDaysCount,
-                        averageScore: newAverageScore,
-                        lastUpdate: serverTimestamp()
-                    }, { merge: true });
+                    const dailyDoc = await transaction.get(dailyDocRef);
+                    if (dailyDoc.exists()) {
+                        const dailyData = dailyDoc.data();
+                        delete dailyData[classId]; // Remove the entry
+                        transaction.set(dailyDocRef, dailyData); // Rewrite the document
+                    }
 
-                    // 4. Update the Daily Report document to remove the field
-                    transaction.update(reportDocRef, {
-                        [classId]: deleteField()
+                    // 2. Update Accumulated Scores Document
+                    const accumDoc = await transaction.get(accumDocRef);
+                    let { totalScore = 0, daysCount = 0 } = accumDoc.exists() ? accumDoc.data() : {};
+
+                    // Deduct old score and decrease daysCount
+                    if (daysCount > 0) {
+                        totalScore = Math.max(0, totalScore - oldReport.dcs);
+                        daysCount = Math.max(0, daysCount - 1);
+                    }
+                    
+                    // Calculate new average
+                    const averageScore = daysCount > 0 ? (totalScore / daysCount) : 0;
+
+                    transaction.set(accumDocRef, { 
+                        totalScore: totalScore, 
+                        daysCount: daysCount, 
+                        averageScore: averageScore 
                     });
                 });
 
-                showNotification('Report deleted successfully!', 'success');
-                closeModal('report-modal');
-
-            } catch (e) {
-                console.error("Delete transaction failed:", e);
-                showNotification(`Delete Failed: ${e.message}`, 'error');
+                appInterface.closeModal('report-modal');
+                console.log("Report deleted and Accumulated Score updated successfully.");
+            } catch (error) {
+                console.error("Deletion transaction failed: ", error);
+                await customConfirm('Deletion Failed', 'There was an error deleting the report and updating the cumulative score. Please try again.', false);
             }
         }
-
-        // --- CONFIG/SETTINGS LOGIC ---
-
-        /**
-         * Renders the department configuration list in the settings modal.
-         */
-        function renderDepartmentsInSettings() {
-            const container = document.getElementById('departments-config-container');
-            container.innerHTML = '';
-
-            config.departments.forEach((dept, deptIndex) => {
-                const deptDiv = document.createElement('div');
-                deptDiv.id = `dept-config-${deptIndex}`;
-                deptDiv.className = 'border border-gray-200 rounded-xl p-4 shadow-sm bg-gray-50';
-                
-                // Department Header and Name Input
-                let deptHtml = `
-                    <div class="flex justify-between items-center mb-4 pb-2 border-b">
-                        <input type="text" value="${dept.name}" oninput="window.app.updateDepartmentName(${deptIndex}, this.value)" 
-                               class="text-lg font-bold p-1 bg-transparent border-none focus:ring-0 focus:border-blue-500 w-3/4" placeholder="Department Name">
-                        <button onclick="window.app.removeDepartment(${deptIndex})" class="text-red-500 hover:text-red-700 transition" title="Remove Department">
-                            <i class="ph-trash-fill text-xl"></i>
-                        </button>
-                    </div>
-                    
-                    <h5 class="text-base font-semibold text-gray-600 mb-2">Classes in ${dept.name}</h5>
-                    <div id="classes-config-${deptIndex}" class="space-y-2 mb-4">
-                `;
-                
-                // Class List
-                dept.classes.forEach((cls, classIndex) => {
-                    deptHtml += `
-                        <div class="flex items-center space-x-2 bg-white p-2 rounded-lg border">
-                            <input type="text" value="${cls.name}" oninput="window.app.updateClassName(${deptIndex}, ${classIndex}, this.value)" 
-                                   class="flex-grow p-1 text-sm border border-gray-200 rounded-md focus:border-blue-500" placeholder="Class Name (e.g., 1A)">
-                            <select onchange="window.app.updateClassType(${deptIndex}, ${classIndex}, this.value)" 
-                                    class="p-1 text-sm border border-gray-200 rounded-md focus:border-blue-500 w-24">
-                                <option value="Girls" ${cls.type === 'Girls' ? 'selected' : ''}>Girls</option>
-                                <option value="Boys" ${cls.type === 'Boys' ? 'selected' : ''}>Boys</option>
-                            </select>
-                            <button onclick="window.app.removeClass(${deptIndex}, ${classIndex})" class="text-red-400 hover:text-red-600 transition" title="Remove Class">
-                                <i class="ph-x-circle-fill text-lg"></i>
-                            </button>
-                        </div>
-                    `;
-                });
-
-                // Add Class Button
-                deptHtml += `
-                    </div>
-                    <button onclick="window.app.addClass(${deptIndex})" type="button" class="flex items-center space-x-1 px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300 transition mt-2">
-                        <i class="ph-plus text-lg"></i><span>Add Class</span>
-                    </button>
-                `;
-
-                deptDiv.innerHTML = deptHtml;
-                container.appendChild(deptDiv);
-            });
-        }
         
-        /**
-         * Adds a new department to the configuration.
-         */
+        
+        // --- CONFIGURATION LOGIC ---
+
+        function updateConfigState(updater) {
+            // Helper to ensure config is treated as immutable for state updates
+            config = JSON.parse(JSON.stringify(config)); // Deep clone
+            updater();
+            // Re-render relevant UI after state change (e.g., settings modal)
+            renderDepartmentsInSettings();
+        }
+
         function addDepartment() {
-            // Department ID generated with a slice of timestamp for uniqueness on first creation
-            config.departments.push({
-                name: "New Department",
-                id: generateSlug('New Department-' + Date.now().toString().slice(-4)),
-                classes: []
+            updateConfigState(() => {
+                const newId = `dept-${Date.now()}`;
+                config.departments.push({ id: newId, name: 'New Department', classes: [] });
             });
-            renderDepartmentsInSettings();
         }
 
-        /**
-         * Removes a department from the configuration.
-         */
-        async function removeDepartment(deptIndex) {
-            const deptName = config.departments[deptIndex].name;
-            try {
-                const result = await customConfirm('Remove Department', `Are you sure you want to remove the department: ${deptName}? This action cannot be undone.`, 'Remove');
-                if (result) {
-                    config.departments.splice(deptIndex, 1);
-                    renderDepartmentsInSettings();
-                    showNotification(`Department "${deptName}" removed. Don't forget to save!`, 'info');
-                }
-            } catch (e) {
-                console.log("Removal cancelled.");
+        async function removeDepartment(deptId) {
+            const confirmed = await customConfirm(
+                'Confirm Department Deletion', 
+                'Deleting a department will remove all associated classes and their configurations. This action cannot be easily undone.', 
+                true
+            );
+            
+            if (confirmed) {
+                updateConfigState(() => {
+                    config.departments = config.departments.filter(d => d.id !== deptId);
+                });
             }
         }
 
-        /**
-         * Updates the name of a department.
-         * NOTE: We no longer update class IDs here, as they are now based on Class Name + Type only.
-         */
-        function updateDepartmentName(deptIndex, newName) {
-            config.departments[deptIndex].name = newName;
-            // Department ID is NOT updated on input change to avoid breaking existing links
-        }
-
-        /**
-         * Adds a new class to a department.
-         */
-        function addClass(deptIndex) {
-            const dept = config.departments[deptIndex];
-            const newClassName = "New Class";
-            const defaultType = 'Girls'; 
-            // New class ID is based on Name and Type, plus a unique suffix to prevent immediate conflict
-            const newClassId = generateSlug(newClassName + '-' + defaultType + '-' + Date.now().toString().slice(-4)); 
-
-            dept.classes.push({
-                name: newClassName,
-                id: newClassId,
-                type: defaultType 
+        function updateDepartmentName(deptId, newName) {
+            updateConfigState(() => {
+                const dept = config.departments.find(d => d.id === deptId);
+                if (dept) dept.name = newName;
             });
-            renderDepartmentsInSettings();
         }
 
-        /**
-         * Removes a class from a department.
-         */
-        async function removeClass(deptIndex, classIndex) {
-            const className = config.departments[deptIndex].classes[classIndex].name;
-            try {
-                const result = await customConfirm('Remove Class', `Are you sure you want to remove the class: ${className}? Accumulated data will remain in the database.`, 'Remove');
-                if (result) {
-                    config.departments[deptIndex].classes.splice(classIndex, 1);
-                    renderDepartmentsInSettings();
-                    showNotification(`Class "${className}" removed. Don't forget to save!`, 'info');
+        function addClass(deptId) {
+            updateConfigState(() => {
+                const dept = config.departments.find(d => d.id === deptId);
+                if (dept) {
+                    const newClassId = `cls-${Date.now()}`;
+                    dept.classes.push({ id: newClassId, name: 'New Class', type: 'Girls' });
                 }
-            } catch (e) {
-                console.log("Removal cancelled.");
-            }
+            });
         }
 
-        /**
-         * Updates the name of a class and recalculates its ID using both name and type.
-         * FIX: ID must incorporate class type to avoid duplicate slugs like '1a' for Boys and Girls.
-         */
-        function updateClassName(deptIndex, classIndex, newName) {
-            const classType = config.departments[deptIndex].classes[classIndex].type;
-            const newId = generateSlug(newName + '-' + classType); // New ID format: className-type
+        async function removeClass(deptId, clsId) {
+            const confirmed = await customConfirm(
+                'Confirm Class Deletion', 
+                'This will remove the class. Any existing daily reports or accumulated scores for this class will remain in the database but will no longer be visible in the tracker.', 
+                true
+            );
             
-            config.departments[deptIndex].classes[classIndex].name = newName;
-            config.departments[deptIndex].classes[classIndex].id = newId;
-        }
-
-        /**
-         * Updates the type (Girls/Boys) of a class and recalculates its ID.
-         * FIX: ID must incorporate class name to ensure uniqueness across sections.
-         */
-        function updateClassType(deptIndex, classIndex, newType) {
-            const className = config.departments[deptIndex].classes[classIndex].name;
-            const newId = generateSlug(className + '-' + newType); // New ID format: className-type
-            
-            config.departments[deptIndex].classes[classIndex].type = newType;
-            config.departments[deptIndex].classes[classIndex].id = newId;
-        }
-
-        /**
-         * Saves all configuration data and uploads the logo if necessary.
-         */
-        async function saveConfig() {
-            const saveButton = document.getElementById('config-save-button');
-            const saveText = document.getElementById('config-save-text');
-            const saveSpinner = document.getElementById('config-save-spinner');
-            const errorElement = document.getElementById('settings-error-message');
-
-            if (!authReady || !userId || auth.currentUser.isAnonymous) {
-                 errorElement.textContent = "You must be signed in with Google to save settings.";
-                 errorElement.classList.remove('hidden');
-                 return;
-            }
-            errorElement.classList.add('hidden');
-
-
-            saveButton.disabled = true;
-            saveText.classList.add('hidden');
-            saveSpinner.classList.remove('hidden');
-
-            const logoFile = document.getElementById('config-schoolLogo').files[0];
-            const logoText = document.getElementById('config-schoolLogoText').value.trim().toUpperCase() || 'T.';
-            
-            let newLogoUrl = config.schoolInfo.logoUrl; // Preserve existing URL by default
-
-            try {
-                // 1. Validate required fields
-                const schoolName = document.getElementById('config-schoolName').value.trim();
-                if (!schoolName) throw new Error("School Name is required.");
-
-                // Check for duplicate class IDs after slugification (Now correctly based on Name AND Type)
-                const allClassIds = [];
-                for (const dept of config.departments) {
-                    for (const cls of dept.classes) {
-                        // The ID should be unique, which now includes the type (e.g., '1a-girls' vs '1a-boys')
-                        if (allClassIds.includes(cls.id)) {
-                            throw new Error(`Duplicate class name/type found. Please ensure the combination of Class Name ("${cls.name}") and Section (${cls.type}) is unique across all classes. Slug: ${cls.id}`);
-                        }
-                        allClassIds.push(cls.id);
+            if (confirmed) {
+                updateConfigState(() => {
+                    const dept = config.departments.find(d => d.id === deptId);
+                    if (dept) {
+                        dept.classes = dept.classes.filter(c => c.id !== clsId);
                     }
-                }
-
-                // 2. Handle Logo Upload/Delete
-                if (logoFile) {
-                    const storageRef = ref(storage, STORAGE_LOGO_PATH);
-                    const snapshot = await uploadBytes(storageRef, logoFile);
-                    newLogoUrl = await getDownloadURL(snapshot.ref);
-                } else if (!logoFile && config.schoolInfo.logoUrl) {
-                    // Check if logo input was cleared but an old URL exists. 
-                    // Assume user wants to keep the old logo unless they explicitly delete it via a dedicated control (not implemented here) or by changing the file.
-                }
-
-                // 3. Prepare updated config object
-                const updatedConfig = {
-                    schoolInfo: {
-                        name: schoolName,
-                        address: document.getElementById('config-schoolAddress').value.trim(),
-                        phone: document.getElementById('config-schoolPhone').value.trim(),
-                        website: document.getElementById('config-schoolWebsite').value.trim(),
-                        logoUrl: newLogoUrl,
-                        logoText: logoText,
-                    },
-                    departments: config.departments.map(dept => ({
-                        // Clean up department object for saving
-                        name: dept.name,
-                        id: dept.id,
-                        classes: dept.classes.map(cls => ({ name: cls.name, id: cls.id, type: cls.type }))
-                    }))
-                };
-
-                // 4. Save to Firestore
-                const configDocRef = doc(db, CONFIG_DOC_PATH);
-                await setDoc(configDocRef, updatedConfig);
-                
-                // Clear the file input after successful upload
-                document.getElementById('config-schoolLogo').value = null;
-
-                showNotification('Configuration saved successfully!', 'success');
-                closeModal('settings-modal');
-
-            } catch (e) {
-                console.error("Config save failed:", e);
-                errorElement.textContent = `Save Error: ${e.message}`;
-                errorElement.classList.remove('hidden');
-            } finally {
-                saveButton.disabled = false;
-                saveText.classList.remove('hidden');
-                saveSpinner.classList.add('hidden');
+                });
             }
+        }
+
+        function updateClassName(deptId, clsId, newName) {
+            updateConfigState(() => {
+                const dept = config.departments.find(d => d.id === deptId);
+                const cls = dept?.classes.find(c => c.id === clsId);
+                if (cls) cls.name = newName;
+            });
+        }
+
+        function updateClassType(deptId, clsId, newType) {
+            updateConfigState(() => {
+                const dept = config.departments.find(d => d.id === deptId);
+                const cls = dept?.classes.find(c => c.id === clsId);
+                if (cls) cls.type = newType;
+            });
         }
         
-        // --- HELPER FUNCTIONS ---
+        async function saveConfig() {
+            if (auth.currentUser?.isAnonymous) {
+                document.getElementById('save-status').classList.remove('hidden');
+                return;
+            }
 
-        /**
-         * Generates a slug from a string (used for IDs).
-         */
-        function generateSlug(text) {
-            return text
-                .toString()
-                .toLowerCase()
-                .trim()
-                .replace(/\s+/g, '-')       // Replace spaces with -
-                .replace(/[^\w\-]+/g, '')   // Remove all non-word chars
-                .replace(/\-\-+/g, '-')     // Replace multiple - with single -
-                .substring(0, 50);          // Truncate to a reasonable length
-        }
+            const name = document.getElementById('config-schoolName').value.trim();
+            const address = document.getElementById('config-schoolAddress').value.trim();
+            const phone = document.getElementById('config-schoolPhone').value.trim();
+            const website = document.getElementById('config-schoolWebsite').value.trim();
+            const logoText = document.getElementById('config-schoolLogoText').value.trim();
+            const logoFile = document.getElementById('config-schoolLogoFile').files[0];
 
-        /**
-         * Formats a Date object to YYYY-MM-DD string.
-         */
-        function formatToISODate(date) {
-            const d = new Date(date);
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
-
-
-        // --- PUBLIC API EXPOSURE ---
-        const appInterface = {
-            openModal: openModal,
-            closeModal: closeModal,
-            confirmResolve: confirmResolve,
-            confirmReject: confirmReject,
-            recalculateDCS: recalculateDCS,
-            handleAuthClick: handleAuthClick,
+            let logoUrl = config.schoolInfo.logoUrl || '';
+            let newLogoUploaded = false;
             
-            /** Opens the settings modal and prepares the configuration form. */
-            openSettings: function() {
-                const info = config.schoolInfo;
+            // 1. Handle Logo Image Upload
+            if (logoFile) {
+                document.getElementById('logo-status').textContent = 'Uploading...';
+                try {
+                    const logoRef = storageRef(storage, STORAGE_LOGO_PATH);
+                    const snapshot = await uploadBytes(logoRef, logoFile);
+                    logoUrl = await getDownloadURL(snapshot.ref);
+                    document.getElementById('logo-status').textContent = 'Upload complete.';
+                    newLogoUploaded = true;
+                } catch (error) {
+                    console.error("Logo upload failed:", error);
+                    document.getElementById('logo-status').textContent = 'Upload failed.';
+                    // Don't save URL if upload failed, keep old one or clear it.
+                    logoUrl = config.schoolInfo.logoUrl || ''; 
+                }
+            } else if (config.schoolInfo.logoUrl && !logoFile && !logoUrl) {
+                // If user cleared file input AND config had a URL, clear the URL
+                try {
+                    await deleteObject(storageRef(storage, STORAGE_LOGO_PATH));
+                    logoUrl = '';
+                    console.log('Old logo deleted from storage.');
+                } catch (error) {
+                    // Ignore error if file simply didn't exist
+                    logoUrl = '';
+                }
+            } else if (config.schoolInfo.logoUrl && !logoFile) {
+                // Keep existing URL if file input is empty and we are not explicitly clearing it.
+                logoUrl = config.schoolInfo.logoUrl;
+            } else {
+                logoUrl = '';
+            }
+
+            // 2. Prepare new config object
+            const newConfig = {
+                ...config,
+                schoolInfo: {
+                    name, address, phone, website, logoText, logoUrl
+                },
+                // Re-slug class IDs to ensure they are consistent before saving
+                departments: config.departments.map(dept => ({
+                    ...dept,
+                    classes: dept.classes.map(cls => ({
+                        ...cls,
+                        id: slugify(`${cls.name}-${cls.type}`) // Ensure slug is saved as ID
+                    }))
+                }))
+            };
+
+            // 3. Save to Firestore
+            try {
+                await setDoc(doc(db, CONFIG_DOC_PATH), { config: newConfig });
+                
+                // Update local config immediately after save
+                config = newConfig; 
+                if (newLogoUploaded) appInterface.updateLogoPreview(); // Refresh preview if logo changed
+                
+                document.getElementById('logo-status').textContent = 'Configuration saved successfully!';
+                document.getElementById('save-config-button').textContent = 'Saved!';
+                setTimeout(() => {
+                    document.getElementById('save-config-button').textContent = 'Save Configuration';
+                    document.getElementById('logo-status').textContent = '';
+                }, 2000);
+            } catch (error) {
+                console.error("Error saving configuration:", error);
+                document.getElementById('logo-status').textContent = 'Error: Save failed. See console.';
+            }
+        }
+
+        
+        // --- APP INTERFACE (Public Methods) ---
+        
+        const appInterface = {
+            
+            // --- MODAL & UI CONTROL ---
+            openModal: (modalId) => {
+                const modal = document.getElementById(modalId);
+                if (modal) {
+                    modal.style.display = 'flex';
+                    // Add listener to close on outside click (for large modals)
+                    modal.onclick = (e) => {
+                        if (e.target.id === modalId) {
+                            appInterface.closeModal(modalId);
+                        }
+                    };
+                }
+            },
+            
+            closeModal: (modalId) => {
+                const modal = document.getElementById(modalId);
+                if (modal) {
+                    modal.style.display = 'none';
+                    modal.onclick = null; // Remove outside click listener
+                }
+            },
+            
+            toggleAuthMenu: (event) => {
+                event.stopPropagation(); // Prevent document click from closing immediately
+                const menu = document.getElementById('auth-menu');
+                menu.classList.toggle('hidden');
+                
+                // Add a temporary click listener to close the menu when clicking anywhere else
+                const closeMenu = (e) => {
+                    if (!document.getElementById('auth-button').contains(e.target)) {
+                        menu.classList.add('hidden');
+                        document.removeEventListener('click', closeMenu);
+                    }
+                };
+                if (!menu.classList.contains('hidden')) {
+                    document.addEventListener('click', closeMenu);
+                } else {
+                    document.removeEventListener('click', closeMenu);
+                }
+            },
+            
+            copyUserId: () => {
+                if (userId) {
+                    navigator.clipboard.writeText(userId)
+                        .then(() => {
+                            const display = document.getElementById('user-id-display');
+                            const originalText = display.textContent;
+                            display.textContent = 'Copied!';
+                            setTimeout(() => display.textContent = originalText, 1500);
+                        })
+                        .catch(err => {
+                            console.error('Failed to copy text: ', err);
+                            // Fallback for environment restrictions
+                            const dummy = document.createElement("textarea");
+                            document.body.appendChild(dummy);
+                            dummy.value = userId;
+                            dummy.select();
+                            document.execCommand("copy");
+                            document.body.removeChild(dummy);
+                        });
+                }
+            },
+            
+            setDate: (dateString) => {
+                selectedDate = dateString;
+                document.getElementById('selected-date-display').textContent = dateString;
+                // Since selectedDate is changed, the onSnapshot listener for daily reports needs to be re-established.
+                // Re-running initializeFirebase or just setupDataListeners is overkill. 
+                // The existing listener for the old date will die when the tab is closed/page reloaded in a real app,
+                // but here, we need to explicitly listen for the new document. 
+                // A simpler approach for this environment: re-initialise the listener logic.
+                if (db) {
+                     // 3. Daily Reports Listener (for the selected date) - Re-subscribe
+                    onSnapshot(doc(db, REPORTS_COLLECTION_PATH, selectedDate), (docSnap) => {
+                        dailyReports = docSnap.exists() ? docSnap.data() : {};
+                        console.log(`Daily reports for ${selectedDate} updated (re-subscribed).`);
+                        renderDashboard();
+                    }, (error) => {
+                        console.error(`Error listening to daily reports for ${selectedDate}:`, error);
+                    });
+                }
+                
+            },
+            
+            showSettingsTab: (tabId) => {
+                document.getElementById('school-info-tab').classList.add('hidden');
+                document.getElementById('departments-tab').classList.add('hidden');
+                
+                document.getElementById('tab-school-info').classList.remove('active', 'border-emerald-600');
+                document.getElementById('tab-departments').classList.remove('active', 'border-emerald-600');
+
+                document.getElementById(`${tabId}-tab`).classList.remove('hidden');
+                document.getElementById(`tab-${tabId}`).classList.add('active', 'border-emerald-600');
+            },
+            
+            updateLogoPreview: () => {
+                const info = config.schoolInfo || {};
+                const fileInput = document.getElementById('config-schoolLogoFile');
+                const previewImg = document.getElementById('school-logo-img');
+                const previewText = document.getElementById('school-logo-text');
+
+                // Read file selected by user
+                if (fileInput.files.length > 0) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        previewImg.src = e.target.result;
+                        previewImg.classList.remove('hidden');
+                        previewText.classList.add('hidden');
+                    };
+                    reader.readAsDataURL(fileInput.files[0]);
+                } else if (info.logoUrl) {
+                    // Revert to existing saved URL if file cleared
+                    previewImg.src = info.logoUrl;
+                    previewImg.classList.remove('hidden');
+                    previewText.classList.add('hidden');
+                } else {
+                    // Revert to text if file cleared and no existing URL
+                    previewImg.classList.add('hidden');
+                    previewText.classList.remove('hidden');
+                    previewText.textContent = document.getElementById('config-schoolLogoText').value.trim() || 'T.';
+                }
+            },
+
+            openSettingsModal: function() {
+                // Initialize input fields with current config
+                const info = config.schoolInfo || {};
                 document.getElementById('config-schoolName').value = info.name || '';
                 document.getElementById('config-schoolAddress').value = info.address || '';
                 document.getElementById('config-schoolPhone').value = info.phone || '';
                 document.getElementById('config-schoolWebsite').value = info.website || '';
                 document.getElementById('config-schoolLogoText').value = info.logoText || 'T.';
-                document.getElementById('settings-error-message').classList.add('hidden');
-
-
-                // Set up Logo Preview logic
-                const fileInput = document.getElementById('config-schoolLogo');
+                
+                // Reset file input and status
+                document.getElementById('config-schoolLogoFile').value = '';
+                document.getElementById('logo-status').textContent = '';
+                
+                // Show logo preview based on current saved state
                 const previewImg = document.getElementById('school-logo-img');
                 const previewText = document.getElementById('school-logo-text');
-
-                // Initial state
-                previewImg.src = info.logoUrl || '';
+                
                 if (info.logoUrl) {
+                    previewImg.src = info.logoUrl;
                     previewImg.classList.remove('hidden');
                     previewText.classList.add('hidden');
                 } else {
@@ -1311,18 +1312,14 @@
                     previewText.textContent = info.logoText || 'T.';
                 }
                 
-                // File input change listener for live preview
-                fileInput.onchange = (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            previewImg.src = e.target.result;
-                            previewImg.classList.remove('hidden');
-                            previewText.classList.add('hidden');
-                        };
-                        reader.readAsDataURL(file);
-                    } else if (!info.logoUrl) {
+                // Add change listener to file input for live preview
+                document.getElementById('config-schoolLogoFile').onchange = () => {
+                    appInterface.updateLogoPreview();
+                };
+                
+                // Add change listener to text input for live preview
+                document.getElementById('config-schoolLogoText').oninput = () => {
+                    if (!document.getElementById('config-schoolLogoFile').files[0] && !info.logoUrl) {
                         // Revert to text if file cleared and no existing URL
                         previewImg.classList.add('hidden');
                         previewText.classList.remove('hidden');
@@ -1335,6 +1332,7 @@
             },
 
             signInWithGoogle: signInWithGoogle,
+            signOutUser: signOutUser,
             addDepartment: addDepartment,
             removeDepartment: removeDepartment,
             updateDepartmentName: updateDepartmentName,
@@ -1344,6 +1342,7 @@
             updateClassType: updateClassType,
             saveConfig: saveConfig,
             openReportModal: openReportModal,
+            recalculateDCS: recalculateDCS,
             updateReportEntry: updateReportEntry,
             deleteReportEntry: deleteReportEntry,
         };
