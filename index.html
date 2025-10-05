@@ -52,11 +52,13 @@
 
             <div id="logged-in-view" class="hidden">
                 <div class="flex flex-col md:flex-row items-center justify-between mb-4">
-                    <p class="text-sm text-gray-500 mb-2 md:mb-0">Logged in as: <span id="user-id-display" class="font-mono text-xs bg-gray-100 px-2 py-1 rounded-md break-all"></span></p>
+                    <p class="text-sm text-gray-500 mb-2 md:mb-0">Logged in as: <span id="user-display-name" class="font-semibold text-gray-700"></span></p>
                     <button onclick="signOutUser()" class="w-full md:w-auto bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
                         Sign Out
                     </button>
                 </div>
+                <!-- Hidden element to store the actual UID, used for data saving and deletion checks -->
+                <span id="user-id-display" class="hidden"></span>
                 <hr class="mb-4">
                 
                 <!-- Notes Input Form -->
@@ -84,8 +86,8 @@
     <!-- Firebase SDK Imports -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, setLogLevel, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getAuth, signInWithCustomToken, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, setLogLevel, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // =========================================================================
         // YOUR ACTUAL FIREBASE CONFIGURATION (Provided by the user)
@@ -110,6 +112,8 @@
         const initialAuthToken = envInitialAuthToken; 
 
         let db, auth, userId = null;
+        let userName = null; // New variable to store display name
+        let userEmail = null; // New variable to store email
         let unsubscribeNotes = () => {}; // Placeholder for the unsubscribe function
 
         const loadingIndicator = document.getElementById('loading-indicator');
@@ -119,7 +123,9 @@
         const notesList = document.getElementById('notes-list');
         const noteForm = document.getElementById('note-form');
         const noteText = document.getElementById('note-text');
-        const userIdDisplay = document.getElementById('user-id-display');
+        // We now update a separate element for the display name
+        const userIdDisplay = document.getElementById('user-id-display'); 
+        const userDisplayName = document.getElementById('user-display-name');
         const messageBox = document.getElementById('message-box');
         const noNotesMessage = document.getElementById('no-notes');
 
@@ -161,6 +167,10 @@
         window.signInWithGoogle = async function() {
             try {
                 const provider = new GoogleAuthProvider();
+                // Request the profile scope to get name and picture
+                provider.addScope('profile'); 
+                provider.addScope('email');
+                
                 await signInWithPopup(auth, provider);
                 showMessage("Successfully signed in with Google!", 'success');
             } catch (error) {
@@ -200,8 +210,7 @@
                 const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
-                // setLogLevel('debug'); // Uncomment for debugging Firestore logs
-
+                
                 loadingIndicator.style.display = 'block';
                 
                 // Use initialAuthToken if available
@@ -214,7 +223,14 @@
 
                     if (user) {
                         userId = user.uid;
-                        userIdDisplay.textContent = userId;
+                        // Capture Name and Email for display and storage
+                        userName = user.displayName || 'Anonymous User';
+                        userEmail = user.email || 'No Email Provided';
+
+                        // Update UI to show name/email
+                        userDisplayName.textContent = userName + (user.email ? ` (${user.email})` : '');
+                        userIdDisplay.textContent = userId; // Keep UID hidden for internal use
+
                         loggedOutView.classList.add('hidden');
                         loggedInView.classList.remove('hidden');
                         notesContainer.classList.remove('hidden');
@@ -223,6 +239,9 @@
 
                     } else {
                         userId = null;
+                        userName = null;
+                        userEmail = null;
+                        userDisplayName.textContent = 'N/A';
                         userIdDisplay.textContent = 'N/A';
                         loggedOutView.classList.remove('hidden');
                         loggedInView.classList.add('hidden');
@@ -238,7 +257,7 @@
             }
         }
         
-        /** Adds a new note to the public shared collection. */
+        /** Adds a new note to the public shared collection, including name/email. */
         noteForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const text = noteText.value.trim();
@@ -258,11 +277,13 @@
             if (!notesColRef) return;
 
             try {
-                // The rules above allow any authenticated user to create a note in the public path.
                 await addDoc(notesColRef, {
                     text: text,
                     createdAt: serverTimestamp(),
-                    userId: userId 
+                    // Save user identifying information with the note
+                    userId: userId,
+                    userName: userName,
+                    userEmail: userEmail
                 });
                 noteText.value = '';
                 showMessage("Note shared successfully with everyone!", 'success');
@@ -275,7 +296,6 @@
         /** Deletes a note from the public shared collection. */
         window.deleteNote = async function(noteId) {
             if (!auth.currentUser || auth.currentUser.uid !== userId) {
-                // NOTE: We rely on the security rules to enforce this, but client-side check is polite
                 showMessage("You can only delete your own notes.", 'error');
                 return;
             }
@@ -301,17 +321,14 @@
             const notesColRef = getNoteCollectionRef();
             if (!notesColRef) return;
 
-            // Define the query: listen to all documents in the public shared collection
             const q = query(notesColRef); 
 
-            // Start listening for real-time updates
             unsubscribeNotes = onSnapshot(q, (snapshot) => {
                 const notes = [];
                 snapshot.forEach(doc => {
                     notes.push({ id: doc.id, ...doc.data() });
                 });
 
-                // Sort notes in memory by createdAt (descending) to show newest first.
                 notes.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
 
                 renderNotes(notes);
@@ -325,9 +342,10 @@
         
         /**
          * Renders the list of notes to the UI.
+         * @param {Array<Object>} notes - The array of note objects.
          */
         function renderNotes(notes) {
-            notesList.innerHTML = ''; // Clear existing notes
+            notesList.innerHTML = ''; 
 
             if (notes.length === 0) {
                 noNotesMessage.classList.remove('hidden');
@@ -340,16 +358,16 @@
                 const noteElement = document.createElement('div');
                 noteElement.className = 'bg-white p-4 shadow-sm rounded-lg border border-gray-100 hover:shadow-md transition duration-150';
                 
-                // Format the timestamp
                 let dateStr = 'Pending...';
                 if (note.createdAt && note.createdAt.toDate) {
                     dateStr = note.createdAt.toDate().toLocaleString();
                 }
                 
+                // Display Name or Email if available, fallback to UID
+                const contributorName = note.userName || note.userEmail || note.userId || 'Unknown User';
                 const contributorId = note.userId || 'Unknown User';
                 const isOwner = userId && userId === contributorId;
 
-                // Only show delete button if the user is the one who created the note
                 const deleteButton = isOwner ? `
                     <button onclick="deleteNote('${note.id}')" title="Delete your note" class="text-gray-400 hover:text-red-500 ml-3 delete-btn">
                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
@@ -363,7 +381,7 @@
                     <div class="mt-2 flex flex-col md:flex-row justify-between items-start md:items-center text-xs text-gray-400">
                         <span>Saved: ${dateStr}</span>
                         <div class="flex items-center">
-                            <span class="mt-1 md:mt-0">By: <span class="font-mono text-gray-500">${contributorId}</span></span>
+                            <span class="mt-1 md:mt-0">By: <span class="font-semibold text-gray-500">${contributorName}</span></span>
                             ${deleteButton}
                         </div>
                     </div>
