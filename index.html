@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultra-Compact Class Performance Tracker</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        
+        /* Enforce full viewport height and prevent main page scrolling */
+        html, body { 
+            height: 100%;
+            min-height: 100vh;
+            overflow: hidden; 
+        }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f4f7f9; 
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Ultra-small font size utility (text-[10px] equivalent) */
+        .text-4xs {
+            font-size: 0.5rem; /* ~8px for info text */
+        }
+        .text-3xs {
+            font-size: 0.55rem; /* ~8.8px */
+        }
+        .text-2xs {
+            font-size: 0.65rem; /* ~10.4px */
+        }
+
+        /* Custom spinner animation */
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+          animation: spin 1.5s linear infinite;
+        }
+        
+        /* Progress bar styling */
+        .progress-bar-container {
+            height: 4px; /* Even thinner progress bar */
+            background-color: #e0e7ff;
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            transition: width 0.3s ease-in-out, background-color 0.3s;
+        }
+
+        /* Hidden but accessible input for date */
+        #date-selector-container {
+            position: relative;
+        }
+        #date-selector {
+            opacity: 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Main Application Container -->
+    <div id="app" class="flex flex-col h-full overflow-hidden">
+        
+        <!-- Header: Minimal Control Bar & School Info -->
+        <header class="p-2 bg-white shadow-md z-10">
+            <div class="flex justify-between items-center mb-1">
+                <!-- Left: Date Picker -->
+                <div id="date-selector-container" class="flex items-center space-x-1 p-1 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition duration-150">
+                    <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <span id="display-date" class="text-xs font-semibold text-gray-700">Today</span>
+                    <input type="date" id="date-selector" onchange="window.app.handleDateChange(event)" class="text-sm">
+                </div>
+                
+                <!-- Right: Utility Buttons -->
+                <div class="flex space-x-2">
+                    <!-- Settings Button -->
+                    <button onclick="window.app.openSettingsModal()" class="p-1.5 rounded-lg bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600 transition duration-150 text-gray-500" title="Manage Departments and School Info">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.228.016 2.449-1.228z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    </button>
+                    <!-- User ID Copy Button (Icon only) -->
+                    <button id="user-id-display" class="p-1.5 rounded-lg bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600 transition duration-150 text-gray-500" title="Click to copy User ID">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0v4m-5 9h2a2 2 0 002-2v-3a2 2 0 00-2-2H8a2 2 0 00-2 2v3a2 2 0 002 2z"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- School/Department Info Display -->
+            <div id="school-info-display" class="pt-1 border-t border-gray-100 mt-1 flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <!-- School Logo Container -->
+                    <div id="school-logo-container" class="w-8 h-8 flex items-center justify-center border rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
+                        <img id="school-logo-img" class="w-full h-full object-cover hidden" src="" alt="School Logo">
+                        <span id="school-logo-text" class="text-sm font-bold text-indigo-700">T.</span>
+                    </div>
+                    <h1 id="school-name" class="text-sm font-bold text-gray-800">Tracker App</h1>
+                </div>
+                <div id="school-contact-info" class="text-4xs text-gray-500 text-right space-y-0.5">
+                    <!-- Contact info injected here -->
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 p-2 overflow-y-auto">
+            <div id="scores-view" class="space-y-4">
+                <!-- Class sections (Departments/Classes) will be dynamically inserted here -->
+            </div>
+        </main>
+
+    </div>
+
+    <!-- Initial Loading and Error Overlay (Used ONLY for initial connection status) -->
+    <div id="initial-message" class="fixed inset-0 bg-gray-50/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-300">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-xs w-full text-center">
+            <svg id="loading-spinner" class="animate-spin-slow mx-auto h-6 w-6 text-indigo-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p id="status-text" class="text-sm font-semibold text-gray-700">Connecting...</p>
+            <p id="error-detail" class="text-xs text-red-500 mt-1 hidden"></p>
+        </div>
+    </div>
+    
+    <!-- Report Input Modal (For Daily Entry) -->
+    <div id="report-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 hidden items-center justify-center p-2">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-sm p-3 transform transition-all duration-300 scale-95 opacity-0" id="modal-content-wrapper">
+            <div class="flex justify-between items-start mb-3">
+                <h2 id="modal-title" class="text-base font-bold text-indigo-700">Report</h2>
+                <button onclick="window.app.closeModal('report-modal', 'modal-content-wrapper')" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <!-- Average Score Display -->
+            <div id="class-avg-display" class="mb-3 p-2 bg-gray-100 rounded-lg text-center border-b-2 border-indigo-200"></div>
+            
+            <div id="report-form-container"></div>
+
+            <!-- Calculated Score Display -->
+            <div class="mt-3 p-2 bg-indigo-50 rounded-lg">
+                <p class="text-xs font-medium text-indigo-700">Daily Class Score (DCS):</p>
+                <p id="calculated-dcs" class="text-xl font-extrabold text-indigo-600">--</p>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="mt-4 pt-3 border-t border-gray-100 flex justify-end space-x-2">
+                <button onclick="window.app.closeModal('report-modal', 'modal-content-wrapper')" class="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md transition duration-150">
+                    Close
+                </button>
+                <button id="save-report-btn" class="px-2 py-1 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition duration-150 flex items-center justify-center disabled:opacity-50" disabled>
+                    <span id="save-spinner" class="hidden w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></span>
+                    <span id="save-button-text">Save</span>
+                </button>
+            </div>
+
+             <!-- Note for historical dates -->
+            <div id="historical-note" class="mt-2 text-3xs text-red-500 font-medium hidden text-center">
+                Saving disabled for past date.
+            </div>
+        </div>
+    </div>
+    
+    <!-- Settings Modal (For Configuration) -->
+    <div id="settings-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 hidden items-center justify-center p-2">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg p-4 h-[90%] overflow-y-auto transform transition-all duration-300 scale-95 opacity-0" id="settings-content-wrapper">
+            <div class="flex justify-between items-start mb-4 border-b pb-2">
+                <h2 class="text-lg font-bold text-indigo-700">Application Settings</h2>
+                <button onclick="window.app.closeModal('settings-modal', 'settings-content-wrapper')" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <!-- School Information Section -->
+            <div class="mb-6">
+                <h3 class="text-sm font-bold text-gray-800 mb-2 border-l-4 border-indigo-400 pl-2">School Information</h3>
+                <div id="school-info-form" class="grid grid-cols-2 gap-3 text-sm">
+                    <input type="text" id="config-schoolName" placeholder="School Name" class="col-span-2 p-2 border rounded-md focus:ring-indigo-500">
+                    
+                    <!-- Logo Upload and Fallback Text -->
+                    <div class="col-span-2 flex items-center space-x-3">
+                        <!-- Logo Preview/Text Fallback -->
+                        <div id="logo-preview-container" class="w-12 h-12 flex-shrink-0 border rounded-full bg-gray-100 overflow-hidden flex items-center justify-center">
+                            <img id="config-logo-preview" class="w-full h-full object-cover hidden" src="" alt="Current Logo">
+                            <span id="config-logo-text-preview" class="text-lg font-bold text-indigo-700">T.</span>
+                        </div>
+                        
+                        <div class="flex-grow">
+                            <label for="config-schoolLogoFile" class="block text-xs font-medium text-gray-700 mb-1">Upload School Logo (Image)</label>
+                            <input type="file" id="config-schoolLogoFile" accept="image/*" class="w-full text-sm text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                            <input type="text" id="config-schoolLogoText" placeholder="Fallback Text (e.g., T)" class="mt-1 p-1.5 w-full border rounded-md text-xs focus:ring-indigo-500">
+                        </div>
+                    </div>
+                    
+                    <input type="text" id="config-schoolPhone" placeholder="Phone Number" class="p-2 border rounded-md focus:ring-indigo-500">
+                    <input type="text" id="config-schoolAddress" placeholder="Address" class="col-span-2 p-2 border rounded-md focus:ring-indigo-500">
+                    <input type="text" id="config-schoolWebsite" placeholder="Website URL" class="col-span-2 p-2 border rounded-md focus:ring-indigo-500">
+                </div>
+            </div>
+
+            <!-- Departments and Classes Section -->
+            <div class="mb-6">
+                <h3 class="text-sm font-bold text-gray-800 mb-2 border-l-4 border-indigo-400 pl-2">Manage Departments & Classes</h3>
+                
+                <div id="departments-list" class="space-y-4">
+                    <!-- Departments and classes injected here -->
+                </div>
+
+                <!-- Add New Department -->
+                <div class="mt-4 flex space-x-2">
+                    <input type="text" id="new-department-name" placeholder="New Department Name (e.g., Summer School)" class="flex-grow p-2 border rounded-md text-sm focus:ring-indigo-500">
+                    <button onclick="window.app.addDepartment()" class="px-3 py-1 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition duration-150">
+                        Add Department
+                    </button>
+                </div>
+            </div>
+
+            <!-- Save Configuration Button -->
+            <div class="mt-6 pt-3 border-t border-gray-100 flex justify-end">
+                <button onclick="window.app.saveConfig()" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition duration-150">
+                    Save All Settings
+                </button>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Firebase SDK Imports -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, doc, setDoc, onSnapshot, runTransaction, getDoc, 
+            collection, query, Timestamp, setLogLevel 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // New: Import Firebase Storage modules
+        import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+
+
+        // IMPORTANT: The following global variables are expected to be provided by the execution environment.
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        // Configuration provided explicitly by the user, used as a fallback if the environment config is missing.
+        const USER_PROVIDED_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCtsveJ8hmw6JJN4YlouNuHhmvSYumiMos",
+            authDomain: "classroom-chronicle-l6lhk.firebaseapp.com",
+            projectId: "classroom-chronicle-l6lhk",
+            storageBucket: "classroom-chronicle-l6lhk.firebasestorage.app",
+            messagingSenderId: "642583297310",
+            appId: "1:642583297310:web:fdb8da9ab0f01cd9aa9d0f"
+        };
+        
+        // Prioritize the environment-provided config (__firebase_config), otherwise use the user's explicit fallback.
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : USER_PROVIDED_FIREBASE_CONFIG;
+            
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // --- GLOBAL STATE ---
+        let app;
+        let db;
+        let auth;
+        let storage; // Added for Storage
+        let userId = null;
+        let dailyReportUnsubscribe = null;
+        let accumulatedScoresUnsubscribe = null;
+        let configUnsubscribe = null;
+        let isSaving = false;
+
+        // Default Configuration (Classes 1A-4 only, under Weekend School)
+        const DEFAULT_CONFIG = {
+            schoolInfo: {
+                name: 'Weekend School Tracker',
+                logoText: 'WS', // Text fallback
+                logoUrl: '', // New field for image URL
+                address: '123 Main St',
+                website: 'https://school.edu',
+                phone: '(123) 456-7890'
+            },
+            departments: [
+                { 
+                    id: 'Weekend_School', 
+                    name: 'Weekend School', 
+                    classes: [
+                        { id: 'Girls-1A', name: '1A', type: 'Girls' },
+                        { id: 'Girls-1B', name: '1B', type: 'Girls' },
+                        { id: 'Girls-1C', name: '1C', type: 'Girls' },
+                        { id: 'Girls-2', name: '2', type: 'Girls' },
+                        { id: 'Girls-3', name: '3', type: 'Girls' },
+                        { id: 'Girls-4', name: '4', type: 'Girls' },
+                        
+                        { id: 'Boys-1A', name: '1A', type: 'Boys' },
+                        { id: 'Boys-1B', name: '1B', type: 'Boys' },
+                        { id: 'Boys-1C', name: '1C', type: 'Boys' },
+                        { id: 'Boys-2', name: '2', type: 'Boys' },
+                        { id: 'Boys-3', name: '3', type: 'Boys' },
+                        { id: 'Boys-4', name: '4', type: 'Boys' },
+                    ]
+                }
+            ]
+        };
+
+        let appState = {
+            currentDate: new Date(),
+            selectedClassId: null,
+            dailyReports: {},
+            accumulatedScores: {},
+            config: DEFAULT_CONFIG, 
+        };
+        
+        // --- UTILITY FUNCTIONS ---
+
+        /**
+         * Finds a class definition by its ID across all departments.
+         */
+        function findClassById(classId) {
+            if (!appState.config || !appState.config.departments) return null;
+            for (const dept of appState.config.departments) {
+                const classDef = dept.classes.find(c => c.id === classId);
+                if (classDef) return classDef;
+            }
+            return null;
+        }
+
+        /**
+         * Generates a simple slug from a string for use as an ID.
+         */
+        function slugify(text) {
+            return text.toLowerCase()
+                       .trim()
+                       .replace(/[^\w\s-]/g, '')
+                       .replace(/[\s_-]+/g, '_')
+                       .replace(/^-+|-+$/g, '');
+        }
+
+        /**
+         * Formats a Date object into a YYYY-MM-DD string.
+         */
+        function formatDate(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+        
+        /**
+         * Formats a Date object into a short display string (e.g., Oct 5).
+         */
+        function formatDisplayDate(date) {
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+
+        /**
+         * Logs messages to the console instead of showing temporary UI overlays.
+         */
+        function showMessage(title, detail, type = 'success') {
+            if (type === 'error') {
+                console.error(`[APP ERROR] ${title}: ${detail}`);
+            } else if (type === 'none') {
+                // Log for processes that are expected to take time, but not necessarily a success/error
+                console.log(`[APP STATUS] ${title}: ${detail}`);
+            } else {
+                console.log(`[APP SUCCESS] ${title}: ${detail}`);
+            }
+            // IMPORTANT: All UI manipulation code for temporary messages has been removed per user request.
+        }
+
+        /**
+         * Hides the main loading/status overlay.
+         */
+        function hideInitialMessage() {
+            const overlay = document.getElementById('initial-message');
+            overlay.classList.add('opacity-0', 'pointer-events-none');
+        }
+
+        /**
+         * Calculates the Daily Class Score (DCS).
+         */
+        function calculateDCS(total, present, reportBrought, reportSigned) {
+            // Weights: Attendance (50%), PR Brought (25%), PR Signed (25%)
+            if (total === 0) return { score: 0, maxScore: 100 };
+
+            const attendanceScore = (present / total) * 50;
+            const broughtScore = (reportBrought / total) * 25;
+            const signedScore = (reportSigned / total) * 25;
+
+            const totalScore = Math.round(attendanceScore + broughtScore + signedScore);
+            return { score: totalScore, maxScore: 100 };
+        }
+
+        /**
+         * Determines performance status based on cumulative average.
+         */
+        function getPerformanceStatus(data) {
+            if (!data || data.daysCount === 0 || data.totalScore === 0) {
+                return { status: 'No Data', color: 'border-gray-400', tailwind: 'bg-gray-100 text-gray-500' };
+            }
+
+            const average = data.averageScore;
+
+            if (average >= 90) {
+                return { status: 'Excellent', color: 'border-green-500', tailwind: 'bg-green-100 text-green-600' };
+            } else if (average >= 80) {
+                return { status: 'Good', color: 'border-indigo-500', tailwind: 'bg-indigo-100 text-indigo-600' };
+            } else if (average >= 70) {
+                return { status: 'Fair', color: 'border-yellow-500', tailwind: 'bg-yellow-100 text-yellow-600' };
+            } else {
+                return { status: 'Poor', color: 'border-red-500', tailwind: 'bg-red-100 text-red-600' };
+            }
+        }
+
+        /**
+         * Renders the School/Contact information in the header.
+         */
+        function renderSchoolInfo() {
+            const info = appState.config.schoolInfo || {};
+            const logoImg = document.getElementById('school-logo-img');
+            const logoText = document.getElementById('school-logo-text');
+
+            document.getElementById('school-name').textContent = info.name || 'Tracker App';
+
+            // Handle Logo Display
+            if (info.logoUrl) {
+                logoImg.src = info.logoUrl;
+                logoImg.classList.remove('hidden');
+                logoText.classList.add('hidden');
+            } else {
+                logoText.textContent = info.logoText || 'T.';
+                logoImg.classList.add('hidden');
+                logoText.classList.remove('hidden');
+            }
+
+            const contactInfoHtml = `
+                ${info.address ? `<p>${info.address}</p>` : ''}
+                ${info.phone ? `<p>${info.phone}</p>` : ''}
+                ${info.website ? `<p><a href="${info.website}" target="_blank" class="text-indigo-500 hover:underline">${info.website.replace(/(https?:\/\/)/, '')}</a></p>` : ''}
+            `;
+            document.getElementById('school-contact-info').innerHTML = contactInfoHtml;
+        }
+
+        /**
+         * Renders the main grid of class cards, now grouped by department and then by gender.
+         */
+        function renderClassList() {
+            const scoresView = document.getElementById('scores-view');
+            scoresView.innerHTML = ''; 
+
+            const reports = appState.dailyReports || {};
+            const accumulated = appState.accumulatedScores || {};
+            const departments = appState.config.departments || [];
+
+            if (departments.length === 0) {
+                scoresView.innerHTML = `<div class="p-4 text-center text-gray-500">
+                    No departments configured. Please go to Settings (gear icon) to add departments and classes.
+                </div>`;
+                return;
+            }
+            
+            /**
+             * Generates the HTML card for a single class.
+             * @param {object} classDef The class definition object.
+             * @returns {string} The HTML string for the card.
+             */
+            const generateClassCard = (classDef) => {
+                const classId = classDef.id;
+                const dailyReport = reports[classId];
+                const accumulatedData = accumulated[classId];
+                const perf = getPerformanceStatus(accumulatedData);
+                
+                const dcs = dailyReport ? dailyReport.dailyClassScore : 0;
+                
+                // Extract daily stats
+                const T = dailyReport?.totalStudents || 0;
+                const P = dailyReport?.presentToday || 0;
+                const PR = dailyReport?.progressReportBrought || 0;
+                const PRS = dailyReport?.progressReportSigned || 0;
+
+                // Split stats into two lines for consistent compact display
+                const line1Stats = `T:${T} P:${P}`;
+                const line2Stats = `PR:${PR} PRS:${PRS}`;
+
+                return `
+                    <!-- Ultra-Compact Card (p-1.5, text-xs/text-base) -->
+                    <div id="card-${classId}" 
+                         class="bg-white rounded-lg shadow-sm hover:shadow-md transition duration-300 transform hover:scale-[1.03] cursor-pointer 
+                                border-l-4 ${perf.color} p-1.5 flex flex-col justify-between" 
+                         onclick="window.app.selectClass('${classId}')">
+                        
+                        <!-- Top Row: ID and Cumulative Avg (Made AVG more prominent) -->
+                        <div class="flex justify-between items-start mb-1">
+                            <h3 class="text-xs font-semibold text-gray-800" title="Class: ${classDef.id}">${classDef.name}</h3>
+                            <span class="text-sm font-extrabold px-1 py-0 rounded ${perf.tailwind}" title="Overall Average: ${accumulatedData?.averageScore || '--'}%">
+                                ${accumulatedData?.averageScore || '--'}%
+                            </span>
+                        </div>
+
+                        <!-- Daily Stats and Daily Score (DCS) -->
+                        <div class="mb-1 flex justify-between items-end">
+                            <!-- Stats on Two Lines using flex-col for the left side -->
+                            <div class="flex flex-col text-3xs text-gray-500 font-medium">
+                                <span title="Total & Present">${line1Stats}</span>
+                                <span title="PR Brought & PR Signed">${line2Stats}</span>
+                            </div>
+                            <!-- Daily Class Score (DCS) -->
+                            <p class="text-base font-extrabold text-indigo-600">${dcs}%</p>
+                        </div>
+
+                        <!-- Daily Progress Bar (Thinner) -->
+                        <div class="progress-bar-container">
+                            <div class="progress-bar ${dcs >= 70 ? 'bg-indigo-500' : 'bg-red-400'}" style="width: ${dcs}%;"></div>
+                        </div>
+                    </div>
+                `;
+            };
+
+
+            departments.forEach(department => {
+                const classes = department.classes || [];
+                if (classes.length === 0) return;
+
+                // Group classes by type
+                const girlsClasses = classes.filter(c => c.type === 'Girls');
+                const boysClasses = classes.filter(c => c.type === 'Boys');
+
+                let departmentContentHtml = '';
+
+                // --- 1. Girls Section ---
+                if (girlsClasses.length > 0) {
+                    const girlsCardsHtml = girlsClasses.map(generateClassCard).join('');
+                    departmentContentHtml += `
+                        <div class="mt-4">
+                            <h3 class="text-base font-semibold text-pink-600 mb-2 border-b border-pink-200 pb-0.5">Girls Section</h3>
+                            <!-- Max Grid Density for Mobile -->
+                            <div class="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
+                                ${girlsCardsHtml}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // --- 2. Boys Section ---
+                if (boysClasses.length > 0) {
+                    const boysCardsHtml = boysClasses.map(generateClassCard).join('');
+                    departmentContentHtml += `
+                        <div class="mt-4">
+                            <h3 class="text-base font-semibold text-blue-600 mb-2 border-b border-blue-200 pb-0.5">Boys Section</h3>
+                            <!-- Max Grid Density for Mobile -->
+                            <div class="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
+                                ${boysCardsHtml}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // 3. Render the entire department section
+                scoresView.insertAdjacentHTML('beforeend', `
+                    <section class="p-3 bg-white rounded-xl shadow-lg border-t-4 border-indigo-500">
+                        <h2 class="text-lg font-bold text-gray-800 mb-1 pb-1 border-b border-gray-200">${department.name}</h2>
+                        ${departmentContentHtml}
+                    </section>
+                `);
+            });
+        }
+
+        /**
+         * Renders the content of the report modal. (No change to core logic)
+         */
+        function renderModalContent(classId) {
+            const classDef = findClassById(classId);
+            if (!classDef) return;
+
+            const report = appState.dailyReports[classId] || {};
+            const accumulatedData = appState.accumulatedScores[classId];
+            const isToday = formatDate(appState.currentDate) === formatDate(new Date());
+            const perf = getPerformanceStatus(accumulatedData);
+            const averageScore = accumulatedData?.averageScore || '--';
+
+            document.getElementById('modal-title').textContent = `${classDef.name} Report`;
+            const formContainer = document.getElementById('report-form-container');
+            const saveButton = document.getElementById('save-report-btn');
+            const historicalNote = document.getElementById('historical-note');
+            
+            document.getElementById('class-avg-display').innerHTML = `
+                <p class="text-xs font-medium text-gray-700">Accumulated Average Score:</p>
+                <span class="text-2xl font-extrabold ${perf.tailwind.replace('bg-', 'text-')}" title="${perf.status}">
+                    ${averageScore}%
+                </span>
+            `;
+
+            saveButton.disabled = !isToday;
+            saveButton.classList.toggle('bg-indigo-600', isToday);
+            saveButton.classList.toggle('bg-gray-400', !isToday);
+            historicalNote.classList.toggle('hidden', isToday);
+
+            const totalStudents = report.totalStudents || (report.totalStudents === 0 ? '0' : '');
+            const presentToday = report.presentToday || (report.presentToday === 0 ? '0' : '');
+            const progressReportBrought = report.progressReportBrought || (report.progressReportBrought === 0 ? '0' : '');
+            const progressReportSigned = report.progressReportSigned || (report.progressReportSigned === 0 ? '0' : '');
+
+            const { score } = calculateDCS(parseInt(totalStudents, 10) || 0, parseInt(presentToday, 10) || 0, parseInt(progressReportBrought, 10) || 0, parseInt(progressReportSigned, 10) || 0);
+            document.getElementById('calculated-dcs').textContent = `${score}%`;
+
+            const inputFields = [
+                { id: 'totalStudents', label: 'Total Students (T)', value: totalStudents, help: 'Max enrollment' },
+                { id: 'presentToday', label: 'Present Today (P)', value: presentToday, help: '50% weight' },
+                { id: 'progressReportBrought', label: 'PR Brought (PR)', value: progressReportBrought, help: '25% weight' },
+                { id: 'progressReportSigned', label: 'PR Signed (PRS)', value: progressReportSigned, help: '25% weight' },
+            ];
+
+            formContainer.innerHTML = `
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    ${inputFields.map(field => `
+                        <div class="col-span-1">
+                            <label for="${field.id}" class="block text-xs font-medium text-gray-700">
+                                ${field.label}
+                            </label>
+                            <span class="block text-3xs text-gray-500 mb-0.5">${field.help}</span>
+                            <input 
+                                type="number" 
+                                id="${field.id}" 
+                                value="${field.value}" 
+                                min="0"
+                                placeholder="Enter count"
+                                oninput="window.app.updateReportEntry('${classId}')"
+                                class="mt-0.5 block w-full rounded-md border-gray-300 shadow-sm p-1.5 text-base focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ${!isToday ? 'bg-gray-100' : ''}"
+                                ${!isToday ? 'disabled' : ''}
+                            >
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            const saveBtn = document.getElementById('save-report-btn');
+            saveBtn.onclick = () => saveClassReport(classId);
+        }
+
+        /**
+         * Handles input changes in the report modal and updates the DCS. (No change to core logic)
+         */
+        function updateReportEntry(classId) {
+            let totalStudents = Math.max(0, parseInt(document.getElementById('totalStudents').value, 10) || 0);
+            let presentToday = Math.max(0, parseInt(document.getElementById('presentToday').value, 10) || 0);
+            let progressReportBrought = Math.max(0, parseInt(document.getElementById('progressReportBrought').value, 10) || 0);
+            let progressReportSigned = Math.max(0, parseInt(document.getElementById('progressReportSigned').value, 10) || 0);
+
+            presentToday = Math.min(presentToday, totalStudents);
+            progressReportBrought = Math.min(progressReportBrought, totalStudents);
+            progressReportSigned = Math.min(progressReportSigned, totalStudents);
+
+            document.getElementById('totalStudents').value = totalStudents === 0 && document.getElementById('totalStudents').value === '' ? '' : totalStudents;
+            document.getElementById('presentToday').value = presentToday === 0 && document.getElementById('presentToday').value === '' ? '' : presentToday;
+            document.getElementById('progressReportBrought').value = progressReportBrought === 0 && document.getElementById('progressReportBrought').value === '' ? '' : progressReportBrought;
+            document.getElementById('progressReportSigned').value = progressReportSigned === 0 && document.getElementById('progressReportSigned').value === '' ? '' : progressReportSigned;
+            
+            const { score } = calculateDCS(totalStudents, presentToday, progressReportBrought, progressReportSigned);
+            document.getElementById('calculated-dcs').textContent = `${score}%`;
+
+            appState.dailyReports = appState.dailyReports || {};
+            appState.dailyReports[classId] = {
+                totalStudents: totalStudents,
+                presentToday: presentToday,
+                progressReportBrought: progressReportBrought,
+                progressReportSigned: progressReportSigned,
+                dailyClassScore: score
+            };
+            renderClassList();
+        }
+
+        /**
+         * Saves the report data to Firestore using a transaction for atomic updates. (No change to core logic)
+         */
+        async function saveClassReport(classId) {
+            if (isSaving || !userId) return;
+
+            const saveButton = document.getElementById('save-report-btn');
+            const buttonText = document.getElementById('save-button-text');
+            const spinner = document.getElementById('save-spinner');
+
+            const totalStudents = Math.max(0, parseInt(document.getElementById('totalStudents').value, 10) || 0);
+            const presentToday = Math.max(0, parseInt(document.getElementById('presentToday').value, 10) || 0);
+            const progressReportBrought = Math.max(0, parseInt(document.getElementById('progressReportBrought').value, 10) || 0);
+            const progressReportSigned = Math.max(0, parseInt(document.getElementById('progressReportSigned').value, 10) || 0);
+
+            if (totalStudents === 0 && (presentToday > 0 || progressReportBrought > 0 || progressReportSigned > 0)) {
+                showMessage('Error', 'Total students cannot be zero if other metrics are recorded.', 'error');
+                return;
+            }
+            
+            const { score } = calculateDCS(totalStudents, presentToday, progressReportBrought, progressReportSigned);
+            const reportDateId = formatDate(appState.currentDate);
+
+            const newReportData = {
+                classId,
+                reportDateId,
+                totalStudents,
+                presentToday,
+                progressReportBrought,
+                progressReportSigned,
+                dailyClassScore: score,
+                recordedBy: userId,
+                timestamp: Timestamp.now()
+            };
+
+            isSaving = true;
+            saveButton.disabled = true;
+            buttonText.textContent = 'Saving...';
+            spinner.classList.remove('hidden');
+
+            try {
+                const dailyReportsDocRef = doc(db, `artifacts/${appId}/users/${userId}/daily_attendance_reports`, reportDateId);
+                const dailyReportsDoc = await getDoc(dailyReportsDocRef);
+                const existingReports = dailyReportsDoc.exists() ? dailyReportsDoc.data() : {};
+                const existingScore = existingReports[classId]?.dailyClassScore || 0;
+                
+                const accumulatedDocRef = doc(db, `artifacts/${appId}/public/data/accumulated_class_scores`, classId);
+
+                await runTransaction(db, async (transaction) => {
+                    const accumulatedDoc = await transaction.get(accumulatedDocRef);
+                    
+                    let totalScore = accumulatedDoc.exists() ? accumulatedDoc.data().totalScore : 0;
+                    let daysCount = accumulatedDoc.exists() ? accumulatedDoc.data().daysCount : 0;
+
+                    if (existingScore > 0) {
+                        // If we are updating an existing score, remove the old score from the total
+                        totalScore -= existingScore;
+                    } else {
+                        // If we are recording a new score for the day, increment the count
+                        daysCount += 1;
+                    }
+                    
+                    totalScore += score;
+                    const averageScore = daysCount > 0 ? Math.round(totalScore / daysCount) : 0;
+
+                    transaction.set(accumulatedDocRef, {
+                        classId: classId,
+                        totalScore: totalScore,
+                        daysCount: daysCount,
+                        averageScore: averageScore,
+                        lastUpdate: Timestamp.now()
+                    }, { merge: true });
+                });
+                
+                await setDoc(dailyReportsDocRef, {
+                    [classId]: newReportData
+                }, { merge: true });
+
+                showMessage('Saved!', `${classId} report updated.`);
+                window.app.closeModal('report-modal', 'modal-content-wrapper');
+
+            } catch (error) {
+                console.error(`Error saving report for ${classId}:`, error);
+                showMessage('Error', `Failed to save: ${error.message}`, 'error');
+                
+            } finally {
+                isSaving = false;
+                saveButton.disabled = false;
+                buttonText.textContent = 'Save';
+                spinner.classList.add('hidden');
+            }
+        }
+        
+        // --- CONFIGURATION MANAGEMENT ---
+
+        /**
+         * Renders the Departments and Classes section inside the Settings Modal. (Unchanged)
+         */
+        function renderDepartmentsInSettings() {
+            const departmentsList = document.getElementById('departments-list');
+            departmentsList.innerHTML = '';
+            
+            const departments = appState.config.departments || [];
+
+            if (departments.length === 0) {
+                departmentsList.innerHTML = '<p class="text-sm text-gray-500">No departments configured. Add one above.</p>';
+                return;
+            }
+
+            departments.forEach((dept, deptIndex) => {
+                const classes = dept.classes || [];
+                const deptId = dept.id;
+                
+                const classesHtml = (classes).map((cls, clsIndex) => `
+                    <div class="flex items-center justify-between bg-gray-50 p-1.5 rounded-md text-xs border border-gray-200">
+                        <span class="font-medium text-gray-700">${cls.name} (${cls.type})</span>
+                        <button onclick="window.app.removeClass(${deptIndex}, ${clsIndex})" class="text-red-500 hover:text-red-700 transition" title="Remove Class">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                `).join('');
+
+                const deptHtml = `
+                    <div class="border p-3 rounded-lg shadow-sm">
+                        <div class="flex justify-between items-center mb-2 pb-1 border-b">
+                            <h4 class="text-base font-semibold text-indigo-600">${dept.name}</h4>
+                            <div class="flex space-x-2">
+                                <button onclick="window.app.removeDepartment(${deptIndex})" 
+                                    class="text-red-500 hover:text-red-700 text-xs font-medium transition disabled:opacity-50"
+                                    title="Remove Department (Cannot be undone)">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Class List Grid -->
+                        <div class="grid grid-cols-4 gap-2 mb-3">
+                            ${classesHtml}
+                        </div>
+                        
+                        <!-- Add New Class Form -->
+                        <div class="flex space-x-2 mt-2">
+                            <input type="text" id="new-class-name-${deptId}" placeholder="Class Name (e.g., 5)" class="p-1.5 border rounded-md text-sm w-1/3">
+                            <select type="text" id="new-class-type-${deptId}" class="p-1.5 border rounded-md text-sm w-1/3">
+                                <option value="Girls">Girls</option>
+                                <option value="Boys">Boys</option>
+                            </select>
+                            <button onclick="window.app.addClass('${deptId}')" class="px-3 py-1 text-sm font-medium text-white bg-indigo-500 hover:bg-indigo-600 rounded-md transition w-1/3">
+                                Add Class
+                            </button>
+                        </div>
+                    </div>
+                `;
+                departmentsList.insertAdjacentHTML('beforeend', deptHtml);
+            });
+        }
+
+        function addDepartment() { 
+            const nameInput = document.getElementById('new-department-name');
+            const newName = nameInput.value.trim();
+            if (!newName) {
+                showMessage('Error', 'Department name cannot be empty.', 'error');
+                return;
+            }
+
+            const newId = slugify(newName);
+            
+            if (appState.config.departments.some(d => d.id === newId)) {
+                showMessage('Error', 'Department name already exists (or slugified name conflicts).', 'error');
+                return;
+            }
+
+            appState.config.departments.push({
+                id: newId,
+                name: newName,
+                classes: []
+            });
+
+            nameInput.value = '';
+            renderDepartmentsInSettings();
+            showMessage('Added!', `New department '${newName}' added. Don't forget to Save All Settings.`, 'success');
+        }
+
+        function removeDepartment(deptIndex) { 
+            if (appState.config.departments[deptIndex]) {
+                const name = appState.config.departments[deptIndex].name;
+                appState.config.departments.splice(deptIndex, 1);
+                renderDepartmentsInSettings();
+                showMessage('Removed!', `Department '${name}' removed. Don't forget to Save All Settings.`, 'success');
+            }
+        }
+        
+        function addClass(deptId) { 
+            const dept = appState.config.departments.find(d => d.id === deptId);
+            if (!dept) return;
+
+            const nameInput = document.getElementById(`new-class-name-${deptId}`);
+            const typeInput = document.getElementById(`new-class-type-${deptId}`);
+            
+            const newName = nameInput.value.trim();
+            const newType = typeInput.value;
+            
+            if (!newName) {
+                showMessage('Error', 'Class name cannot be empty.', 'error');
+                return;
+            }
+            
+            const newClassId = slugify(`${newType}-${newName}`);
+            
+            if (dept.classes.some(c => c.id === newClassId)) {
+                showMessage('Error', `Class ID '${newClassId}' already exists in this department.`, 'error');
+                return;
+            }
+
+            dept.classes.push({
+                id: newClassId,
+                name: newName,
+                type: newType
+            });
+
+            nameInput.value = '';
+            renderDepartmentsInSettings();
+            showMessage('Added!', `New class '${newName}' added to ${dept.name}. Don't forget to Save All Settings.`, 'success');
+        }
+
+        function removeClass(deptIndex, clsIndex) { 
+            const dept = appState.config.departments[deptIndex];
+            if (dept && dept.classes[clsIndex]) {
+                const name = dept.classes[clsIndex].name;
+                dept.classes.splice(clsIndex, 1);
+                renderDepartmentsInSettings();
+                showMessage('Removed!', `Class '${name}' removed from ${dept.name}. Don't forget to Save All Settings.`, 'success');
+            }
+        }
+
+        /**
+         * Saves the entire application configuration (School Info, Departments, Classes) to Firestore.
+         */
+        async function saveConfig() {
+            if (!userId || !storage) {
+                showMessage('Error', 'App not fully initialized. Cannot save config.', 'error');
+                return;
+            }
+
+            const fileInput = document.getElementById('config-schoolLogoFile');
+            const file = fileInput.files[0];
+            let logoUrl = appState.config.schoolInfo.logoUrl || '';
+            const logoText = document.getElementById('config-schoolLogoText').value.trim() || 'T.';
+
+            if (file) {
+                // 1. Upload new image if file is present
+                if (file.size > 1024 * 1024) { // Check file size (1MB limit)
+                    showMessage('Error', 'Image size must be less than 1MB.', 'error');
+                    return;
+                }
+                showMessage('Uploading...', 'Please wait while the logo is being saved.', 'none');
+
+                try {
+                    // Note: This path requires Firebase Storage Security Rules to allow writes by request.auth.uid
+                    const storagePath = `logos/${userId}/school_logo`; 
+                    const fileRef = storageRef(storage, storagePath);
+                    await uploadBytes(fileRef, file);
+                    logoUrl = await getDownloadURL(fileRef);
+                    showMessage('Upload Success', 'Logo image uploaded.', 'success');
+                } catch (error) {
+                    console.error("Error uploading logo:", error);
+                    showMessage('Upload Error', `Failed to upload logo: ${error.message}. Please check your Firebase Storage Security Rules.`, 'error');
+                    return; // Stop saving if upload fails
+                }
+            } else if (fileInput.value === '' && logoUrl !== '' && !appState.config.schoolInfo.logoUrl) {
+                // If the user cleared the file input (though there's no clear button, this handles future clear options)
+                // Since no file is selected, we keep the existing URL unless explicitly removing it later.
+            }
+            
+            // 2. Collect School Info from inputs
+            const newSchoolInfo = {
+                name: document.getElementById('config-schoolName').value.trim() || 'Tracker App',
+                logoText: logoText,
+                logoUrl: logoUrl, // Use the new URL or the existing one
+                phone: document.getElementById('config-schoolPhone').value.trim(),
+                address: document.getElementById('config-schoolAddress').value.trim(),
+                website: document.getElementById('config-schoolWebsite').value.trim(),
+            };
+            
+            // 3. Prepare the final config object
+            const newConfig = {
+                schoolInfo: newSchoolInfo,
+                departments: appState.config.departments
+            };
+
+            const configDocRef = doc(db, `artifacts/${appId}/users/${userId}/config`, 'schoolConfig');
+
+            try {
+                await setDoc(configDocRef, newConfig);
+                appState.config = newConfig; // Update state immediately
+                renderSchoolInfo();
+                renderClassList();
+                window.app.closeModal('settings-modal', 'settings-content-wrapper');
+                showMessage('Saved!', 'Configuration and Logo updated successfully.');
+            } catch (error) {
+                console.error("Error saving configuration:", error);
+                showMessage('Error', `Failed to save configuration: ${error.message}`, 'error');
+            }
+        }
+
+        // --- FIREBASE LISTENERS ---
+
+        /**
+         * Sets up the listener for the user's application configuration. (Unchanged logic, but config now includes logoUrl)
+         */
+        function setupConfigListener() {
+            if (!db || !userId) return;
+
+            if (configUnsubscribe) configUnsubscribe();
+
+            const configDocRef = doc(db, `artifacts/${appId}/users/${userId}/config`, 'schoolConfig');
+            configUnsubscribe = onSnapshot(configDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    appState.config = docSnap.data();
+                } else {
+                    setDoc(configDocRef, DEFAULT_CONFIG);
+                    appState.config = DEFAULT_CONFIG;
+                }
+                renderSchoolInfo();
+                renderClassList();
+            }, (error) => {
+                console.error("Error listening to config:", error);
+            });
+        }
+
+        /**
+         * Sets up real-time Firestore listeners for daily reports and accumulated scores. (Unchanged)
+         */
+        function setupFirestoreListeners() {
+            if (!db || !userId) {
+                console.warn("Firestore not initialized or user not authenticated.");
+                return;
+            }
+
+            setupConfigListener();
+
+            if (dailyReportUnsubscribe) dailyReportUnsubscribe();
+            if (accumulatedScoresUnsubscribe) accumulatedScoresUnsubscribe();
+
+            const dailyReportsDocRef = doc(db, `artifacts/${appId}/users/${userId}/daily_attendance_reports`, formatDate(appState.currentDate));
+            dailyReportUnsubscribe = onSnapshot(dailyReportsDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    appState.dailyReports = docSnap.data();
+                } else {
+                    appState.dailyReports = {};
+                }
+                renderClassList();
+                if (appState.selectedClassId) {
+                    renderModalContent(appState.selectedClassId);
+                }
+                hideInitialMessage();
+            }, (error) => {
+                console.error("Error listening to daily reports:", error);
+                // Keeping initial message visible for network errors during fetch
+                // showMessage('Error', 'Failed to load daily reports.', 'error');
+            });
+
+
+            const accumulatedCollectionRef = collection(db, `artifacts/${appId}/public/data/accumulated_class_scores`);
+            accumulatedScoresUnsubscribe = onSnapshot(accumulatedCollectionRef, (snapshot) => {
+                const newScores = {};
+                snapshot.forEach(doc => {
+                    newScores[doc.id] = doc.data();
+                });
+                appState.accumulatedScores = newScores;
+                renderClassList();
+            }, (error) => {
+                 console.error("Error listening to accumulated scores:", error);
+            });
+        }
+        
+        // --- AUTHENTICATION & INITIALIZATION ---
+        
+        /**
+         * Initializes Firebase and authenticates the user.
+         */
+        async function initializeFirebase() {
+            if (!firebaseConfig) {
+                document.getElementById('status-text').textContent = 'Config Error';
+                document.getElementById('error-detail').textContent = 'Missing config.';
+                document.getElementById('error-detail').classList.remove('hidden');
+                document.getElementById('loading-spinner').classList.add('hidden');
+                return;
+            }
+
+            try {
+                setLogLevel('debug');
+                
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                storage = getStorage(app); // Initialize Storage
+                
+                await setPersistence(auth, browserSessionPersistence);
+                
+                const authPromise = initialAuthToken 
+                    ? signInWithCustomToken(auth, initialAuthToken) 
+                    : signInAnonymously(auth);
+
+                await authPromise;
+                
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        // Initial setup complete, now update UI
+                        const dateInput = document.getElementById('date-selector');
+                        appState.currentDate = new Date();
+                        const today = formatDate(appState.currentDate);
+                        
+                        dateInput.value = today;
+                        dateInput.max = today; 
+                        document.getElementById('display-date').textContent = formatDisplayDate(appState.currentDate);
+
+                        setupFirestoreListeners();
+                    } else {
+                        // For persistent auth errors, display on the initial message screen
+                        document.getElementById('status-text').textContent = 'Auth Error';
+                        document.getElementById('error-detail').textContent = 'Authentication failed.';
+                        document.getElementById('error-detail').classList.remove('hidden');
+                        document.getElementById('loading-spinner').classList.add('hidden');
+                    }
+                });
+
+            } catch (error) {
+                console.error("Firebase Initialization Error:", error);
+                document.getElementById('status-text').textContent = 'Error';
+                document.getElementById('error-detail').textContent = `Auth failed: ${error.message}`;
+                document.getElementById('error-detail').classList.remove('hidden');
+                document.getElementById('loading-spinner').classList.add('hidden');
+            }
+        }
+        
+        // --- PUBLIC INTERFACE FUNCTIONS (Attached to window.app) ---
+        
+        const appInterface = {
+            handleDateChange: function(event) {
+                const newDate = new Date(event.target.value);
+                // Adjust for local timezone offset when creating the Date object from the input string
+                appState.currentDate = new Date(newDate.getTime() + newDate.getTimezoneOffset() * 60000); 
+                document.getElementById('display-date').textContent = formatDisplayDate(appState.currentDate);
+
+                // Show the loading spinner briefly for the new data fetch
+                document.getElementById('status-text').textContent = 'Fetching...';
+                document.getElementById('error-detail').classList.add('hidden');
+                document.getElementById('loading-spinner').classList.remove('hidden');
+                document.getElementById('initial-message').classList.remove('opacity-0', 'pointer-events-none');
+
+                setupFirestoreListeners(); // Re-initializes listeners for the new date
+            },
+
+            selectClass: function(classId) {
+                appState.selectedClassId = classId;
+                renderModalContent(classId);
+                this.openModal('report-modal', 'modal-content-wrapper');
+            },
+
+            openModal: function(modalId, contentId) {
+                const modal = document.getElementById(modalId);
+                const contentWrapper = document.getElementById(contentId);
+                
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                
+                setTimeout(() => {
+                    contentWrapper.classList.remove('scale-95', 'opacity-0');
+                    contentWrapper.classList.add('scale-100', 'opacity-100');
+                    if (modalId === 'report-modal') {
+                        document.getElementById('totalStudents')?.focus();
+                    }
+                }, 10);
+            },
+
+            closeModal: function(modalId, contentId) {
+                const modal = document.getElementById(modalId);
+                const contentWrapper = document.getElementById(contentId);
+
+                contentWrapper.classList.remove('scale-100', 'opacity-100');
+                contentWrapper.classList.add('scale-95', 'opacity-0');
+                
+                setTimeout(() => {
+                    modal.classList.remove('flex');
+                    modal.classList.add('hidden');
+                    if (modalId === 'report-modal') {
+                        appState.selectedClassId = null;
+                    }
+                }, 300); 
+            },
+            
+            // Settings/Config methods exposed
+            openSettingsModal: function() {
+                const info = appState.config.schoolInfo || {};
+                
+                // 1. Populate text fields
+                document.getElementById('config-schoolName').value = info.name || '';
+                document.getElementById('config-schoolPhone').value = info.phone || '';
+                document.getElementById('config-schoolAddress').value = info.address || '';
+                document.getElementById('config-schoolWebsite').value = info.website || '';
+                document.getElementById('config-schoolLogoText').value = info.logoText || 'T.';
+                
+                // 2. Handle Logo Preview
+                const previewImg = document.getElementById('config-logo-preview');
+                const previewText = document.getElementById('config-logo-text-preview');
+                
+                if (info.logoUrl) {
+                    previewImg.src = info.logoUrl;
+                    previewImg.classList.remove('hidden');
+                    previewText.classList.add('hidden');
+                } else {
+                    previewText.textContent = info.logoText || 'T.';
+                    previewImg.classList.add('hidden');
+                    previewText.classList.remove('hidden');
+                }
+                
+                // 3. Setup file input listener for immediate preview
+                const fileInput = document.getElementById('config-schoolLogoFile');
+                fileInput.value = null; // Clear any previously selected file 
+                fileInput.onchange = (event) => {
+                    const file = event.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            previewImg.src = e.target.result;
+                            previewImg.classList.remove('hidden');
+                            previewText.classList.add('hidden');
+                        };
+                        reader.readAsDataURL(file);
+                    } else if (!info.logoUrl) {
+                        // Revert to text if file cleared and no existing URL
+                        previewImg.classList.add('hidden');
+                        previewText.classList.remove('hidden');
+                        previewText.textContent = document.getElementById('config-schoolLogoText').value.trim() || 'T.';
+                    }
+                };
+
+                renderDepartmentsInSettings();
+                this.openModal('settings-modal', 'settings-content-wrapper');
+            },
+
+            addDepartment: addDepartment,
+            removeDepartment: removeDepartment,
+            addClass: addClass,
+            removeClass: removeClass,
+            saveConfig: saveConfig,
+            updateReportEntry: updateReportEntry,
+        };
+
+        window.app = appInterface; 
+
+        // --- INITIAL SETUP ---
+        
+        window.onload = function() {
+            // Copy user ID utility
+            document.getElementById('user-id-display').addEventListener('click', async () => {
+                const id = userId || 'Loading...';
+                if (id === 'Loading...') {
+                    console.log('User ID is still loading. Cannot copy.');
+                    return;
+                }
+                try {
+                    const tempInput = document.createElement('textarea');
+                    tempInput.value = id;
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(tempInput);
+                    console.log(`User ID copied: ${id}`);
+                } catch (err) {
+                    console.error('Could not copy text: ', err);
+                }
+            });
+
+            initializeFirebase();
+        };
+
+    </script>
+</body>
+</html>
