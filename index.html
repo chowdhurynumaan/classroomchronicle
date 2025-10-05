@@ -52,13 +52,15 @@
 
             <div id="logged-in-view" class="hidden">
                 <div class="flex flex-col md:flex-row items-center justify-between mb-4">
-                    <p class="text-sm text-gray-500 mb-2 md:mb-0">Logged in as: <span id="user-display-name" class="font-semibold text-gray-700"></span></p>
+                    <!-- Updated display area to better fit all user info -->
+                    <div class="flex flex-col text-sm text-gray-500 mb-2 md:mb-0">
+                        <p>Logged in as: <span id="user-display-name" class="font-semibold text-gray-700"></span></p>
+                        <p class="text-xs text-gray-400">UID: <span id="user-id-display" class="font-mono text-gray-500 text-[10px] break-all"></span></p>
+                    </div>
                     <button onclick="signOutUser()" class="w-full md:w-auto bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
                         Sign Out
                     </button>
                 </div>
-                <!-- Hidden element to store the actual UID, used for data saving and deletion checks -->
-                <span id="user-id-display" class="hidden"></span>
                 <hr class="mb-4">
                 
                 <!-- Notes Input Form -->
@@ -106,7 +108,7 @@
         // IMPORTANT: Replace this placeholder with your actual UID.
         // Get your UID by signing in and checking the 'userId' stored internally,
         // or finding it in your Firebase Console Authentication tab.
-        const ADMIN_UID = ""; 
+        const ADMIN_UID = "YOUR_ADMIN_UID_HERE"; 
         
         // Use environment variables if they exist, otherwise fall back to the hardcoded config
         const envAppId = typeof __app_id !== 'undefined' ? __app_id : FIREBASE_CONFIG.projectId;
@@ -233,9 +235,12 @@
                         userName = user.displayName || 'Anonymous User';
                         userEmail = user.email || 'No Email Provided';
 
-                        // Update UI to show name/email
+                        // Update UI to show name/email/UID
                         userDisplayName.textContent = userName + (user.email ? ` (${user.email})` : '');
-                        userIdDisplay.textContent = userId; // Keep UID hidden for internal use
+                        userDisplayName.classList.add('text-indigo-600', 'font-bold'); // Make the name pop
+                        
+                        // Display the full UID clearly below the name/email
+                        userIdDisplay.textContent = userId; 
 
                         loggedOutView.classList.add('hidden');
                         loggedInView.classList.remove('hidden');
