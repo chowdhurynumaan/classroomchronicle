@@ -3,1403 +3,329 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultra-Compact Class Performance Tracker</title>
+    <title>Simple Firebase App</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
-        
-        /* Enforce full viewport height and prevent main page scrolling */
-        html, body { 
-            height: 100%;
-            min-height: 100vh;
-            overflow: hidden; 
-        }
-        
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: #f4f7f9; 
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Ultra-small font size utility (text-[10px] equivalent) */
-        .text-4xs {
-            font-size: 0.5rem; /* ~8px for info text */
-        }
-        .text-3xs {
-            font-size: 0.55rem; /* ~8.8px */
-        }
-        .text-2xs {
-            font-size: 0.65rem; /* ~10.4px */
-        }
-
-        /* Custom spinner animation */
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        .animate-spin-slow {
-          animation: spin 1.5s linear infinite;
-        }
-        
-        /* Progress bar styling */
-        .progress-bar-container {
-            height: 4px; /* Even thinner progress bar */
-            background-color: #e0e7ff;
-            border-radius: 9999px;
-            overflow: hidden;
-        }
-        .progress-bar {
-            height: 100%;
-            transition: width 0.3s ease-in-out, background-color 0.3s;
-        }
-
-        /* Hidden but accessible input for date */
-        #date-selector-container {
-            position: relative;
-        }
-        #date-selector {
-            opacity: 0;
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            cursor: pointer;
-        }
-
-        /* Ensure fixed header/footer for settings modal */
-        #settings-content-wrapper {
-            max-height: 90%;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Custom style for Google Sign-In button to match aesthetics */
-        .google-sign-in-btn {
-            background-color: #4285F4;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-weight: 600;
-            transition: background-color 0.15s;
-        }
-        .google-sign-in-btn:hover {
-            background-color: #357ae8;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f7f9;
         }
     </style>
 </head>
-<body class="antialiased">
+<body>
 
     <!-- Main Application Container -->
-    <div id="app" class="flex flex-col h-full overflow-hidden">
-        
-        <!-- Header: Minimal Control Bar & School Info -->
-        <header class="p-2 bg-white shadow-md z-10">
-            <div class="flex justify-between items-center mb-1">
-                <!-- Left: Date Picker -->
-                <div id="date-selector-container" class="flex items-center space-x-1 p-1 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition duration-150">
-                    <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                    <span id="display-date" class="text-xs font-semibold text-gray-700">Today</span>
-                    <input type="date" id="date-selector" onchange="window.app.handleDateChange(event)" class="text-sm">
-                </div>
-                
-                <!-- Right: Utility Buttons -->
-                <div class="flex space-x-2">
-                    <!-- Settings Button -->
-                    <button onclick="window.app.openSettingsModal()" class="p-1.5 rounded-lg bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600 transition duration-150 text-gray-500" title="Manage Departments and School Info">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.228.016 2.449-1.228z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                    </button>
-                    <!-- User ID Copy/Sign-Out Button (Icon only) -->
-                    <button id="user-auth-btn" 
-                        class="p-1.5 rounded-lg bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600 transition duration-150 text-gray-500" 
-                        title="Click to copy User ID / Sign Out"
-                        onclick="window.app.handleAuthAction()">
-                        <!-- Icon will be dynamically set based on auth state -->
-                        <svg id="auth-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0v4m-5 9h2a2 2 0 002-2v-3a2 2 0 00-2-2H8a2 2 0 00-2 2v3a2 2 0 002 2z"></path></svg>
-                    </button>
-                </div>
-            </div>
-
-            <!-- School/Department Info Display -->
-            <div id="school-info-display" class="pt-1 border-t border-gray-100 mt-1 flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                    <!-- School Logo Container -->
-                    <div id="school-logo-container" class="w-8 h-8 flex items-center justify-center border rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
-                        <img id="school-logo-img" class="w-full h-full object-cover hidden" src="" alt="School Logo" onerror="this.onerror=null; this.src=''; document.getElementById('school-logo-text').classList.remove('hidden'); this.classList.add('hidden');">
-                        <span id="school-logo-text" class="text-sm font-bold text-indigo-700">T.</span>
-                    </div>
-                    <h1 id="school-name" class="text-sm font-bold text-gray-800">Tracker App</h1>
-                </div>
-                <div id="school-contact-info" class="text-4xs text-gray-500 text-right space-y-0.5">
-                    <!-- Contact info injected here -->
-                </div>
-            </div>
+    <div id="app" class="min-h-screen p-4 md:p-10 flex flex-col items-center">
+        <header class="w-full max-w-4xl mb-8">
+            <h1 class="text-4xl font-bold text-center text-indigo-700">Firestore & Google Auth Demo</h1>
         </header>
 
-        <!-- Main Content Area -->
-        <main class="flex-1 p-2 overflow-y-auto">
-            <div id="scores-view" class="space-y-4">
-                <!-- Class sections (Departments/Classes) will be dynamically inserted here -->
+        <!-- Message Box -->
+        <div id="message-box" class="w-full max-w-xl p-3 mb-4 rounded-lg text-center text-sm hidden"></div>
+
+        <!-- Authentication and Status Section -->
+        <div id="auth-status" class="w-full max-w-xl bg-white p-6 shadow-lg rounded-xl mb-8 border border-gray-100">
+            <div id="loading-indicator" class="text-center text-gray-500">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-500 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Initializing Firebase...
             </div>
-        </main>
-
-    </div>
-
-    <!-- Initial Loading and Error Overlay -->
-    <div id="initial-message" class="fixed inset-0 bg-gray-50/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-300">
-        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-xs w-full text-center">
-            <svg id="loading-spinner" class="animate-spin-slow mx-auto h-6 w-6 text-indigo-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <p id="status-text" class="text-sm font-semibold text-gray-700">Connecting...</p>
-            <p id="error-detail" class="text-xs text-red-500 mt-1 hidden"></p>
-
-            <!-- Google Sign-In Button (Hidden initially, shown if needed/functional) -->
-            <button id="google-sign-in-btn" 
-                onclick="window.app.signInWithGoogle()"
-                class="google-sign-in-btn mt-4 text-xs flex items-center justify-center mx-auto space-x-2 hidden">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12.24 10.274a1.88 1.88 0 0 0-.074-.325h-.001c-.004-.015-.008-.03-.012-.045a4.2 4.2 0 0 0-3.92-3.14V7.5c.34-.05.68-.076 1.02-.076a5.72 5.72 0 0 1 5.61 5.76c0 .41-.05.81-.13 1.2h-.002c-.01.03-.02.05-.03.07a4.2 4.2 0 0 0-3.69 2.53v.001c-.1.18-.21.35-.34.5-.2.2-.4.36-.62.53l.004-.002a7.6 7.6 0 0 0 5.17-5.54 7.6 7.6 0 0 0-.005-.33 7.6 7.6 0 0 0-7.39-7.38z" fill="#fff" opacity="0.6"/><path d="M11.95 24c-.21 0-.42-.01-.63-.03a11.97 11.97 0 0 1-10.7-10.7c0-.21.01-.42.03-.63h.001c.02-.38.07-.76.13-1.13a1.88 1.88 0 0 0-.13 1.13 10.15 10.15 0 0 0 10.12 10.12c.21 0 .42-.01.63-.03l-.001.002zM12 0c.21 0 .42-.01.63.03a11.97 11.97 0 0 1 10.7 10.7c0 .21-.01.42-.03.63h-.001c-.02.38-.07.76-.13 1.13a1.88 1.88 0 0 0 .13-1.13A10.15 10.15 0 0 0 11.88.11c-.21 0-.42.01-.63.03l.001-.002z" fill="#fff" opacity="0.4"/></svg>
-                <span>Sign In with Google (Requires Domain Auth)</span>
-            </button>
-        </div>
-    </div>
-    
-    <!-- Report Input Modal (For Daily Entry) -->
-    <div id="report-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 hidden items-center justify-center p-2">
-        <div class="bg-white rounded-lg shadow-2xl w-full max-w-sm p-3 transform transition-all duration-300 scale-95 opacity-0" id="modal-content-wrapper">
-            <div class="flex justify-between items-start mb-3">
-                <h2 id="modal-title" class="text-base font-bold text-indigo-700">Report</h2>
-                <button onclick="window.app.closeModal('report-modal', 'modal-content-wrapper')" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            <!-- Average Score Display -->
-            <div id="class-avg-display" class="mb-3 p-2 bg-gray-100 rounded-lg text-center border-b-2 border-indigo-200"></div>
             
-            <div id="report-form-container"></div>
-
-            <!-- Calculated Score Display -->
-            <div class="mt-3 p-2 bg-indigo-50 rounded-lg">
-                <p class="text-xs font-medium text-indigo-700">Daily Class Score (DCS):</p>
-                <p id="calculated-dcs" class="text-xl font-extrabold text-indigo-600">--</p>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="mt-4 pt-3 border-t border-gray-100 flex justify-end space-x-2">
-                <button onclick="window.app.closeModal('report-modal', 'modal-content-wrapper')" class="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md transition duration-150">
-                    Close
-                </button>
-                <button id="save-report-btn" class="px-2 py-1 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition duration-150 flex items-center justify-center disabled:opacity-50" disabled>
-                    <span id="save-spinner" class="hidden w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></span>
-                    <span id="save-button-text">Save</span>
+            <div id="logged-out-view" class="hidden text-center">
+                <p class="text-gray-600 mb-4">Please sign in to access your private notes.</p>
+                <button onclick="signInWithGoogle()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50">
+                    <svg class="inline-block w-5 h-5 mr-2 -mt-1" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M22.001 12.185c0-.986-.098-1.92-.262-2.812H12.03v5.334h5.686c-.244 1.25-.89 2.457-1.84 3.486l-.001.002-4.008 3.097v.002h.003c2.723 0 5.25-1.07 7.147-3.003C21.436 16.594 22 14.484 22 12.185z" fill="#4285F4"/><path d="M12.03 22c3.23 0 5.92-1.066 7.892-2.887l-4.006-3.097c-1.12.722-2.557 1.148-3.886 1.148-2.986 0-5.51-2.007-6.425-4.706H1.54v.033C3.41 19.336 7.37 22 12.03 22z" fill="#34A853"/><path d="M5.605 13.911c-.24-.722-.375-1.488-.375-2.261 0-.773.135-1.538.375-2.26l-.002-.016H1.539v2.293c.725 3.09 3.553 5.418 6.577 5.418.995 0 1.94-.216 2.784-.582l-2.046-1.58C6.918 15.65 6.136 14.88 5.605 13.911z" fill="#FBBC05"/><path d="M12.03 6.94c1.652 0 3.085.674 4.234 1.764L19.53 5.093c-2.015-1.91-4.7-3.093-7.498-3.093C7.37 2 3.41 4.67 1.54 8.083h4.065c.915-2.698 3.439-4.706 6.425-4.706z" fill="#EA4335"/></svg>
+                    Sign in with Google
                 </button>
             </div>
 
-             <!-- Note for historical dates -->
-            <div id="historical-note" class="mt-2 text-3xs text-red-500 font-medium hidden text-center">
-                Saving disabled for past date.
-            </div>
-        </div>
-    </div>
-    
-    <!-- Settings Modal (For Configuration) -->
-    <div id="settings-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 hidden items-center justify-center p-2">
-        <!-- Added max-h-full and flex-col for sticky header/footer -->
-        <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg max-h-[90%] flex flex-col transform transition-all duration-300 scale-95 opacity-0" id="settings-content-wrapper">
-            
-            <!-- Sticky Header -->
-            <div class="p-4 flex justify-between items-center border-b pb-2 sticky top-0 bg-white z-10 rounded-t-lg">
-                <h2 class="text-lg font-bold text-indigo-700">Application Settings</h2>
-                <button onclick="window.app.closeModal('settings-modal', 'settings-content-wrapper')" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-
-            <!-- Scrollable Body Content -->
-            <div class="p-4 flex-1 overflow-y-auto">
-                <!-- School Information Section -->
-                <div class="mb-6">
-                    <h3 class="text-sm font-bold text-gray-800 mb-2 border-l-4 border-indigo-400 pl-2">School Information</h3>
-                    <div id="school-info-form" class="grid grid-cols-2 gap-3 text-sm">
-                        <input type="text" id="config-schoolName" placeholder="School Name" class="col-span-2 p-2 border rounded-md focus:ring-indigo-500">
-                        
-                        <!-- Logo Upload and Fallback Text -->
-                        <div class="col-span-2 flex items-center space-x-3">
-                            <!-- Logo Preview/Text Fallback -->
-                            <div id="logo-preview-container" class="w-12 h-12 flex-shrink-0 border rounded-full bg-gray-100 overflow-hidden flex items-center justify-center">
-                                <img id="config-logo-preview" class="w-full h-full object-cover hidden" src="" alt="Current Logo" onerror="this.onerror=null; this.src=''; document.getElementById('config-logo-text-preview').classList.remove('hidden'); this.classList.add('hidden');">
-                                <span id="config-logo-text-preview" class="text-lg font-bold text-indigo-700">T.</span>
-                            </div>
-                            
-                            <div class="flex-grow">
-                                <label for="config-schoolLogoFile" class="block text-xs font-medium text-gray-700 mb-1">Upload School Logo (Max 1MB)</label>
-                                <input type="file" id="config-schoolLogoFile" accept="image/*" class="w-full text-sm text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-                                <input type="text" id="config-schoolLogoText" placeholder="Fallback Text (e.g., T)" class="mt-1 p-1.5 w-full border rounded-md text-xs focus:ring-indigo-500">
-                            </div>
-                        </div>
-                        
-                        <input type="text" id="config-schoolPhone" placeholder="Phone Number" class="p-2 border rounded-md focus:ring-indigo-500">
-                        <input type="text" id="config-schoolAddress" placeholder="Address" class="col-span-2 p-2 border rounded-md focus:ring-indigo-500">
-                        <input type="text" id="config-schoolWebsite" placeholder="Website URL" class="col-span-2 p-2 border rounded-md focus:ring-indigo-500">
-                    </div>
+            <div id="logged-in-view" class="hidden">
+                <div class="flex flex-col md:flex-row items-center justify-between mb-4">
+                    <p class="text-sm text-gray-500 mb-2 md:mb-0">Logged in as: <span id="user-id-display" class="font-mono text-xs bg-gray-100 px-2 py-1 rounded-md break-all"></span></p>
+                    <button onclick="signOutUser()" class="w-full md:w-auto bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
+                        Sign Out
+                    </button>
                 </div>
-
-                <!-- Departments and Classes Section -->
-                <div class="mb-6">
-                    <h3 class="text-sm font-bold text-gray-800 mb-2 border-l-4 border-indigo-400 pl-2">Manage Departments & Classes</h3>
-                    
-                    <div id="departments-list" class="space-y-4">
-                        <!-- Departments and classes injected here -->
-                    </div>
-
-                    <!-- Add New Department -->
-                    <div class="mt-4 flex space-x-2">
-                        <input type="text" id="new-department-name" placeholder="New Department Name (e.g., Summer School)" class="flex-grow p-2 border rounded-md text-sm focus:ring-indigo-500">
-                        <button onclick="window.app.addDepartment()" class="px-3 py-1 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition duration-150">
-                            Add Department
-                        </button>
-                    </div>
-                </div>
+                <hr class="mb-4">
+                
+                <!-- Notes Input Form -->
+                <form id="note-form" class="space-y-4">
+                    <textarea id="note-text" rows="3" placeholder="Write a new private note here..." 
+                              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 resize-none"></textarea>
+                    <button type="submit" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 rounded-lg transition duration-200">
+                        Save Note
+                    </button>
+                </form>
             </div>
-
-            <!-- Sticky Footer: Save Configuration Button -->
-            <div class="p-4 pt-3 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10 rounded-b-lg">
-                <button onclick="window.app.saveConfig()" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition duration-150">
-                    Save All Settings
-                </button>
-            </div>
-            
         </div>
+
+        <!-- Notes Display Section -->
+        <div id="notes-container" class="w-full max-w-xl hidden">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Your Private Notes</h2>
+            <div id="notes-list" class="space-y-3">
+                <p id="no-notes" class="text-gray-500 text-center py-4 border border-dashed border-gray-300 rounded-lg">No notes found. Add one above!</p>
+                <!-- Notes will be inserted here -->
+            </div>
+        </div>
+
     </div>
 
     <!-- Firebase SDK Imports -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence, 
-                 // Added for Google Sign-In
-                 GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { 
-            getFirestore, doc, setDoc, onSnapshot, runTransaction, getDoc, 
-            collection, query, Timestamp, setLogLevel 
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-
-        // IMPORTANT: The following global variables are expected to be provided by the execution environment.
+        // Global variables provided by the Canvas environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        
-        // Mocked Firebase Config for demonstration purposes (replace with your actual config or keep provided config)
-        const USER_PROVIDED_FIREBASE_CONFIG = {
-            apiKey: "AIzaSyCtsveJ8hmw6JJN4YlouNuHhmvSYumiMos",
-            authDomain: "classroom-chronicle-l6lhk.firebaseapp.com",
-            projectId: "classroom-chronicle-l6lhk",
-            storageBucket: "classroom-chronicle-l6lhk.firebasestorage.app",
-            messagingSenderId: "642583297310",
-            appId: "1:642583297310:web:fdb8da9ab0f01cd9aa9d0f"
-        };
-        
-        const firebaseConfig = typeof __firebase_config !== 'undefined' 
-            ? JSON.parse(__firebase_config) 
-            : USER_PROVIDED_FIREBASE_CONFIG;
-            
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        // --- GLOBAL STATE ---
-        let app;
-        let db;
-        let auth;
-        let storage; 
-        let userId = null;
-        let userDisplayName = 'User'; 
-        let dailyReportUnsubscribe = null;
-        let accumulatedScoresUnsubscribe = null;
-        let configUnsubscribe = null;
-        let isSaving = false;
+        let db, auth, userId = null;
+        let unsubscribeNotes = () => {}; // Placeholder for the unsubscribe function
 
-        // Default Configuration (Classes 1A-4 only, under Weekend School)
-        const DEFAULT_CONFIG = {
-            schoolInfo: {
-                name: 'Weekend School Tracker',
-                logoText: 'WS', 
-                logoUrl: '', 
-                address: '123 Main St',
-                website: 'https://school.edu',
-                phone: '(123) 456-7890'
-            },
-            departments: [
-                { 
-                    id: 'Weekend_School', 
-                    name: 'Weekend School', 
-                    classes: [
-                        { id: 'Girls-1A', name: '1A', type: 'Girls' },
-                        { id: 'Girls-4', name: '4', type: 'Girls' },
-                        { id: 'Boys-1A', name: '1A', type: 'Boys' },
-                        { id: 'Boys-4', name: '4', type: 'Boys' },
-                    ]
-                }
-            ]
-        };
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const loggedOutView = document.getElementById('logged-out-view');
+        const loggedInView = document.getElementById('logged-in-view');
+        const notesContainer = document.getElementById('notes-container');
+        const notesList = document.getElementById('notes-list');
+        const noteForm = document.getElementById('note-form');
+        const noteText = document.getElementById('note-text');
+        const userIdDisplay = document.getElementById('user-id-display');
+        const messageBox = document.getElementById('message-box');
+        // FIX: Cache the reference to the "no notes found" message element
+        const noNotesMessage = document.getElementById('no-notes');
 
-        let appState = {
-            currentDate: new Date(),
-            selectedClassId: null,
-            dailyReports: {},
-            accumulatedScores: {},
-            config: DEFAULT_CONFIG, 
-        };
-        
-        // --- UTILITY FUNCTIONS ---
+        // --- Utility Functions ---
 
         /**
-         * Finds a class definition by its ID across all departments.
+         * Displays a message in the message box.
+         * @param {string} msg - The message to display.
+         * @param {('success'|'error'|'info')} type - The type of message.
          */
-        function findClassById(classId) {
-            if (!appState.config || !appState.config.departments) return null;
-            for (const dept of appState.config.departments) {
-                const classDef = dept.classes.find(c => c.id === classId);
-                if (classDef) return classDef;
-            }
-            return null;
+        function showMessage(msg, type = 'info') {
+            let bgColor = 'bg-blue-100 border-blue-400 text-blue-700';
+            if (type === 'error') bgColor = 'bg-red-100 border-red-400 text-red-700';
+            if (type === 'success') bgColor = 'bg-green-100 border-green-400 text-green-700';
+
+            messageBox.textContent = msg;
+            messageBox.className = `w-full max-w-xl p-3 mb-4 rounded-lg text-center text-sm border ${bgColor}`;
+            messageBox.style.display = 'block';
+
+            setTimeout(() => {
+                messageBox.style.display = 'none';
+            }, 5000);
         }
 
         /**
-         * Generates a simple slug from a string for use as an ID.
+         * Gets the Firestore collection reference for the user's private notes.
+         * @returns {import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js").CollectionReference}
          */
-        function slugify(text) {
-            return text.toLowerCase()
-                       .trim()
-                       .replace(/[^\w\s-]/g, '')
-                       .replace(/[\s_-]+/g, '_')
-                       .replace(/^-+|-+$/g, '');
-        }
-
-        /**
-         * Formats a Date object into a YYYY-MM-DD string.
-         */
-        function formatDate(date) {
-            const y = date.getFullYear();
-            const m = String(date.getMonth() + 1).padStart(2, '0');
-            const d = String(date.getDate()).padStart(2, '0');
-            return `${y}-${m}-${d}`;
-        }
-        
-        /**
-         * Formats a Date object into a short display string (e.g., Oct 5).
-         */
-        function formatDisplayDate(date) {
-            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        }
-
-        /**
-         * Logs messages to the console instead of showing temporary UI overlays.
-         */
-        function showMessage(title, detail, type = 'success') {
-            if (type === 'error') {
-                console.error(`[APP ERROR] ${title}: ${detail}`);
-            } else if (type === 'none') {
-                console.log(`[APP STATUS] ${title}: ${detail}`);
-            } else {
-                console.log(`[APP SUCCESS] ${title}: ${detail}`);
-            }
-        }
-
-        /**
-         * Hides the main loading/status overlay.
-         */
-        function hideInitialMessage() {
-            const overlay = document.getElementById('initial-message');
-            overlay.classList.add('opacity-0', 'pointer-events-none');
-            document.getElementById('google-sign-in-btn').classList.add('hidden');
-        }
-
-        /**
-         * Shows the main loading/status overlay.
-         */
-        function showInitialMessage(statusText = 'Connecting...', errorText = null, showSpinner = true, showSignIn = false) {
-            const overlay = document.getElementById('initial-message');
-            document.getElementById('status-text').textContent = statusText;
-            document.getElementById('loading-spinner').classList.toggle('hidden', !showSpinner);
-            document.getElementById('google-sign-in-btn').classList.toggle('hidden', !showSignIn);
-
-            const errorDetail = document.getElementById('error-detail');
-            if (errorText) {
-                errorDetail.textContent = errorText;
-                errorDetail.classList.remove('hidden');
-            } else {
-                errorDetail.classList.add('hidden');
-            }
-
-            overlay.classList.remove('opacity-0', 'pointer-events-none');
-            overlay.classList.add('flex');
-        }
-
-        /**
-         * Calculates the Daily Class Score (DCS).
-         */
-        function calculateDCS(total, present, reportBrought, reportSigned) {
-            // Weights: Attendance (50%), PR Brought (25%), PR Signed (25%)
-            if (total === 0) return { score: 0, maxScore: 100 };
-
-            const attendanceScore = (present / total) * 50;
-            const broughtScore = (reportBrought / total) * 25;
-            const signedScore = (reportSigned / total) * 25;
-
-            const totalScore = Math.round(attendanceScore + broughtScore + signedScore);
-            return { score: totalScore, maxScore: 100 };
-        }
-
-        /**
-         * Determines performance status based on cumulative average.
-         */
-        function getPerformanceStatus(data) {
-            if (!data || data.daysCount === 0 || data.totalScore === 0) {
-                return { status: 'No Data', color: 'border-gray-400', tailwind: 'bg-gray-100 text-gray-500' };
-            }
-
-            const average = data.averageScore;
-
-            if (average >= 90) {
-                return { status: 'Excellent', color: 'border-green-500', tailwind: 'bg-green-100 text-green-600' };
-            } else if (average >= 80) {
-                return { status: 'Good', color: 'border-indigo-500', tailwind: 'bg-indigo-100 text-indigo-600' };
-            } else if (average >= 70) {
-                return { status: 'Fair', color: 'border-yellow-500', tailwind: 'bg-yellow-100 text-yellow-600' };
-            } else {
-                return { status: 'Poor', color: 'border-red-500', tailwind: 'bg-red-100 text-red-600' };
-            }
-        }
-
-        /**
-         * Renders the School/Contact information in the header.
-         */
-        function renderSchoolInfo() {
-            const info = appState.config.schoolInfo || {};
-            const logoImg = document.getElementById('school-logo-img');
-            const logoText = document.getElementById('school-logo-text');
-
-            document.getElementById('school-name').textContent = info.name || 'Tracker App';
-
-            // Handle Logo Display
-            if (info.logoUrl) {
-                logoImg.src = info.logoUrl;
-                logoImg.classList.remove('hidden');
-                logoText.classList.add('hidden');
-            } else {
-                logoText.textContent = info.logoText || 'T.';
-                logoImg.classList.add('hidden');
-                logoText.classList.remove('hidden');
-            }
-
-            const contactInfoHtml = `
-                <p class="font-medium text-gray-600">${userDisplayName}</p>
-                ${info.address ? `<p>${info.address}</p>` : ''}
-                ${info.phone ? `<p>${info.phone}</p>` : ''}
-                ${info.website ? `<p><a href="${info.website}" target="_blank" class="text-indigo-500 hover:underline">${info.website.replace(/(https?:\/\/)/, '')}</a></p>` : ''}
-            `;
-            document.getElementById('school-contact-info').innerHTML = contactInfoHtml;
-        }
-
-        /**
-         * Renders the main grid of class cards, now grouped by department and then by gender.
-         */
-        function renderClassList() {
-            if (!userId) {
-                 document.getElementById('scores-view').innerHTML = `<div class="p-4 text-center text-gray-500">Please sign in to view class data.</div>`;
-                 return;
-            }
-            const scoresView = document.getElementById('scores-view');
-            scoresView.innerHTML = ''; 
-
-            const reports = appState.dailyReports || {};
-            const accumulated = appState.accumulatedScores || {};
-            const departments = appState.config.departments || [];
-
-            if (departments.length === 0) {
-                scoresView.innerHTML = `<div class="p-4 text-center text-gray-500">
-                    No departments configured. Please go to Settings (gear icon) to add departments and classes.
-                </div>`;
-                return;
-            }
-            
-            /**
-             * Generates the HTML card for a single class.
-             */
-            const generateClassCard = (classDef) => {
-                const classId = classDef.id;
-                const dailyReport = reports[classId];
-                const accumulatedData = accumulated[classId];
-                const perf = getPerformanceStatus(accumulatedData);
-                
-                const dcs = dailyReport ? dailyReport.dailyClassScore : 0;
-                
-                const T = dailyReport?.totalStudents || 0;
-                const P = dailyReport?.presentToday || 0;
-                const PR = dailyReport?.progressReportBrought || 0;
-                const PRS = dailyReport?.progressReportSigned || 0;
-
-                const line1Stats = `T:${T} P:${P}`;
-                const line2Stats = `PR:${PR} PRS:${PRS}`;
-
-                return `
-                    <!-- Ultra-Compact Card (p-1.5, text-xs/text-base) -->
-                    <div id="card-${classId}" 
-                         class="bg-white rounded-lg shadow-sm hover:shadow-md transition duration-300 transform hover:scale-[1.03] cursor-pointer 
-                                border-l-4 ${perf.color} p-1.5 flex flex-col justify-between" 
-                         onclick="window.app.selectClass('${classId}')">
-                        
-                        <!-- Top Row: ID and Cumulative Avg (Made AVG more prominent) -->
-                        <div class="flex justify-between items-start mb-1">
-                            <h3 class="text-xs font-semibold text-gray-800" title="Class: ${classDef.id}">${classDef.name}</h3>
-                            <span class="text-sm font-extrabold px-1 py-0 rounded ${perf.tailwind}" title="Overall Average: ${accumulatedData?.averageScore || '--'}%">
-                                ${accumulatedData?.averageScore || '--'}%
-                            </span>
-                        </div>
-
-                        <!-- Daily Stats and Daily Score (DCS) -->
-                        <div class="mb-1 flex justify-between items-end">
-                            <!-- Stats on Two Lines using flex-col for the left side -->
-                            <div class="flex flex-col text-3xs text-gray-500 font-medium">
-                                <span title="Total & Present">${line1Stats}</span>
-                                <span title="PR Brought & PR Signed">${line2Stats}</span>
-                            </div>
-                            <!-- Daily Class Score (DCS) -->
-                            <p class="text-base font-extrabold text-indigo-600">${dcs}%</p>
-                        </div>
-
-                        <!-- Daily Progress Bar (Thinner) -->
-                        <div class="progress-bar-container">
-                            <div class="progress-bar ${dcs >= 70 ? 'bg-indigo-500' : 'bg-red-400'}" style="width: ${dcs}%;"></div>
-                        </div>
-                    </div>
-                `;
-            };
-
-
-            departments.forEach(department => {
-                const classes = department.classes || [];
-                if (classes.length === 0) return;
-
-                // Group classes by type
-                const girlsClasses = classes.filter(c => c.type === 'Girls');
-                const boysClasses = classes.filter(c => c.type === 'Boys');
-
-                let departmentContentHtml = '';
-
-                // --- 1. Girls Section ---
-                if (girlsClasses.length > 0) {
-                    const girlsCardsHtml = girlsClasses.map(generateClassCard).join('');
-                    departmentContentHtml += `
-                        <div class="mt-4">
-                            <h3 class="text-base font-semibold text-pink-600 mb-2 border-b border-pink-200 pb-0.5">Girls Section</h3>
-                            <!-- Max Grid Density for Mobile -->
-                            <div class="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
-                                ${girlsCardsHtml}
-                            </div>
-                        </div>
-                    `;
-                }
-
-                // --- 2. Boys Section ---
-                if (boysClasses.length > 0) {
-                    const boysCardsHtml = boysClasses.map(generateClassCard).join('');
-                    departmentContentHtml += `
-                        <div class="mt-4">
-                            <h3 class="text-base font-semibold text-blue-600 mb-2 border-b border-blue-200 pb-0.5">Boys Section</h3>
-                            <!-- Max Grid Density for Mobile -->
-                            <div class="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
-                                ${boysCardsHtml}
-                            </div>
-                        </div>
-                    `;
-                }
-
-                // 3. Render the entire department section
-                scoresView.insertAdjacentHTML('beforeend', `
-                    <section class="p-3 bg-white rounded-xl shadow-lg border-t-4 border-indigo-500">
-                        <h2 class="text-lg font-bold text-gray-800 mb-1 pb-1 border-b border-gray-200">${department.name}</h2>
-                        ${departmentContentHtml}
-                    </section>
-                `);
-            });
-        }
-
-        /**
-         * Renders the content of the report modal.
-         */
-        function renderModalContent(classId) {
-            const classDef = findClassById(classId);
-            if (!classDef) return;
-
-            const report = appState.dailyReports[classId] || {};
-            const accumulatedData = appState.accumulatedScores[classId];
-            const isToday = formatDate(appState.currentDate) === formatDate(new Date());
-            const perf = getPerformanceStatus(accumulatedData);
-            const averageScore = accumulatedData?.averageScore || '--';
-
-            document.getElementById('modal-title').textContent = `${classDef.name} Report`;
-            const formContainer = document.getElementById('report-form-container');
-            const saveButton = document.getElementById('save-report-btn');
-            const historicalNote = document.getElementById('historical-note');
-            
-            document.getElementById('class-avg-display').innerHTML = `
-                <p class="text-xs font-medium text-gray-700">Accumulated Average Score:</p>
-                <span class="text-2xl font-extrabold ${perf.tailwind.replace('bg-', 'text-')}" title="${perf.status}">
-                    ${averageScore}%
-                </span>
-            `;
-
-            saveButton.disabled = !isToday;
-            saveButton.classList.toggle('bg-indigo-600', isToday);
-            saveButton.classList.toggle('bg-gray-400', !isToday);
-            historicalNote.classList.toggle('hidden', isToday);
-
-            const totalStudents = report.totalStudents || (report.totalStudents === 0 ? '0' : '');
-            const presentToday = report.presentToday || (report.presentToday === 0 ? '0' : '');
-            const progressReportBrought = report.progressReportBrought || (report.progressReportBrought === 0 ? '0' : '');
-            const progressReportSigned = report.progressReportSigned || (report.progressReportSigned === 0 ? '0' : '');
-
-            const { score } = calculateDCS(parseInt(totalStudents, 10) || 0, parseInt(presentToday, 10) || 0, parseInt(progressReportBrought, 10) || 0, parseInt(progressReportSigned, 10) || 0);
-            document.getElementById('calculated-dcs').textContent = `${score}%`;
-
-            const inputFields = [
-                { id: 'totalStudents', label: 'Total Students (T)', value: totalStudents, help: 'Max enrollment' },
-                { id: 'presentToday', label: 'Present Today (P)', value: presentToday, help: '50% weight' },
-                { id: 'progressReportBrought', label: 'PR Brought (PR)', value: progressReportBrought, help: '25% weight' },
-                { id: 'progressReportSigned', label: 'PR Signed (PRS)', value: progressReportSigned, help: '25% weight' },
-            ];
-
-            formContainer.innerHTML = `
-                <div class="grid grid-cols-2 gap-3 mb-3">
-                    ${inputFields.map(field => `
-                        <div class="col-span-1">
-                            <label for="${field.id}" class="block text-xs font-medium text-gray-700">
-                                ${field.label}
-                            </label>
-                            <span class="block text-3xs text-gray-500 mb-0.5">${field.help}</span>
-                            <input 
-                                type="number" 
-                                id="${field.id}" 
-                                value="${field.value}" 
-                                min="0"
-                                placeholder="Enter count"
-                                oninput="window.app.updateReportEntry('${classId}')"
-                                class="mt-0.5 block w-full rounded-md border-gray-300 shadow-sm p-1.5 text-base focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ${!isToday ? 'bg-gray-100' : ''}"
-                                ${!isToday ? 'disabled' : ''}
-                            >
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-            
-            const saveBtn = document.getElementById('save-report-btn');
-            saveBtn.onclick = () => saveClassReport(classId);
-        }
-
-        /**
-         * Handles input changes in the report modal and updates the DCS.
-         */
-        function updateReportEntry(classId) {
-            let totalStudents = Math.max(0, parseInt(document.getElementById('totalStudents').value, 10) || 0);
-            let presentToday = Math.max(0, parseInt(document.getElementById('presentToday').value, 10) || 0);
-            let progressReportBrought = Math.max(0, parseInt(document.getElementById('progressReportBrought').value, 10) || 0);
-            let progressReportSigned = Math.max(0, parseInt(document.getElementById('progressReportSigned').value, 10) || 0);
-
-            presentToday = Math.min(presentToday, totalStudents);
-            progressReportBrought = Math.min(progressReportBrought, totalStudents);
-            progressReportSigned = Math.min(progressReportSigned, totalStudents);
-
-            document.getElementById('totalStudents').value = totalStudents === 0 && document.getElementById('totalStudents').value === '' ? '' : totalStudents;
-            document.getElementById('presentToday').value = presentToday === 0 && document.getElementById('presentToday').value === '' ? '' : presentToday;
-            document.getElementById('progressReportBrought').value = progressReportBrought === 0 && document.getElementById('progressReportBrought').value === '' ? '' : progressReportBrought;
-            document.getElementById('progressReportSigned').value = progressReportSigned === 0 && document.getElementById('progressReportSigned').value === '' ? '' : progressReportSigned;
-            
-            const { score } = calculateDCS(totalStudents, presentToday, progressReportBrought, progressReportSigned);
-            document.getElementById('calculated-dcs').textContent = `${score}%`;
-
-            appState.dailyReports = appState.dailyReports || {};
-            appState.dailyReports[classId] = {
-                totalStudents: totalStudents,
-                presentToday: presentToday,
-                progressReportBrought: progressReportBrought,
-                progressReportSigned: progressReportSigned,
-                dailyClassScore: score
-            };
-            renderClassList();
-        }
-
-        /**
-         * Saves the report data to Firestore using a transaction for atomic updates.
-         */
-        async function saveClassReport(classId) {
-            if (isSaving || !userId) return;
-
-            const saveButton = document.getElementById('save-report-btn');
-            const buttonText = document.getElementById('save-button-text');
-            const spinner = document.getElementById('save-spinner');
-
-            const totalStudents = Math.max(0, parseInt(document.getElementById('totalStudents').value, 10) || 0);
-            const presentToday = Math.max(0, parseInt(document.getElementById('presentToday').value, 10) || 0);
-            const progressReportBrought = Math.max(0, parseInt(document.getElementById('progressReportBrought').value, 10) || 0);
-            const progressReportSigned = Math.max(0, parseInt(document.getElementById('progressReportSigned').value, 10) || 0);
-
-            if (totalStudents === 0 && (presentToday > 0 || progressReportBrought > 0 || progressReportSigned > 0)) {
-                showMessage('Error', 'Total students cannot be zero if other metrics are recorded.', 'error');
-                return;
-            }
-            
-            const { score } = calculateDCS(totalStudents, presentToday, progressReportBrought, progressReportSigned);
-            const reportDateId = formatDate(appState.currentDate);
-
-            const newReportData = {
-                classId,
-                reportDateId,
-                totalStudents,
-                presentToday,
-                progressReportBrought,
-                progressReportSigned,
-                dailyClassScore: score,
-                recordedBy: userId, // Keep track of who recorded the data
-                timestamp: Timestamp.now()
-            };
-
-            isSaving = true;
-            saveButton.disabled = true;
-            buttonText.textContent = 'Saving...';
-            spinner.classList.remove('hidden');
-
-            try {
-                // --- PUBLIC PATH FOR DAILY REPORTS ---
-                const dailyReportsDocRef = doc(db, `artifacts/${appId}/public/data/daily_attendance_reports`, reportDateId);
-                const dailyReportsDoc = await getDoc(dailyReportsDocRef);
-                const existingReports = dailyReportsDoc.exists() ? dailyReportsDoc.data() : {};
-                const existingScore = existingReports[classId]?.dailyClassScore || 0;
-                
-                // --- PUBLIC PATH FOR ACCUMULATED SCORES (Already Public) ---
-                const accumulatedDocRef = doc(db, `artifacts/${appId}/public/data/accumulated_class_scores`, classId);
-
-                await runTransaction(db, async (transaction) => {
-                    const accumulatedDoc = await transaction.get(accumulatedDocRef);
-                    
-                    let totalScore = accumulatedDoc.exists() ? accumulatedDoc.data().totalScore : 0;
-                    let daysCount = accumulatedDoc.exists() ? accumulatedDoc.data().daysCount : 0;
-
-                    if (existingScore > 0) {
-                        // If we are updating an existing score, remove the old score from the total
-                        totalScore -= existingScore;
-                    } else {
-                        // If we are recording a new score for the day, increment the count
-                        daysCount += 1;
-                    }
-                    
-                    totalScore += score;
-                    const averageScore = daysCount > 0 ? Math.round(totalScore / daysCount) : 0;
-
-                    transaction.set(accumulatedDocRef, {
-                        classId: classId,
-                        totalScore: totalScore,
-                        daysCount: daysCount,
-                        averageScore: averageScore,
-                        lastUpdate: Timestamp.now()
-                    }, { merge: true });
-                });
-                
-                await setDoc(dailyReportsDocRef, {
-                    [classId]: newReportData
-                }, { merge: true });
-
-                showMessage('Saved!', `${classId} report updated globally.`);
-                window.app.closeModal('report-modal', 'modal-content-wrapper');
-
-            } catch (error) {
-                console.error(`Error saving report for ${classId}:`, error);
-                showMessage('Error', `Failed to save: ${error.message}`, 'error');
-                
-            } finally {
-                isSaving = false;
-                saveButton.disabled = false;
-                buttonText.textContent = 'Save';
-                spinner.classList.add('hidden');
-            }
-        }
-        
-        // --- CONFIGURATION MANAGEMENT ---
-
-        /**
-         * Renders the Departments and Classes section inside the Settings Modal.
-         */
-        function renderDepartmentsInSettings() {
-            const departmentsList = document.getElementById('departments-list');
-            departmentsList.innerHTML = '';
-            
-            const departments = appState.config.departments || [];
-
-            if (departments.length === 0) {
-                departmentsList.innerHTML = '<p class="text-sm text-gray-500">No departments configured. Add one above.</p>';
-                return;
-            }
-
-            departments.forEach((dept, deptIndex) => {
-                const classes = dept.classes || [];
-                const deptId = dept.id;
-                
-                const classesHtml = (classes).map((cls, clsIndex) => `
-                    <div class="flex items-center justify-between bg-gray-50 p-1.5 rounded-md text-xs border border-gray-200">
-                        <span class="font-medium text-gray-700">${cls.name} (${cls.type})</span>
-                        <button onclick="window.app.removeClass(${deptIndex}, ${clsIndex})" class="text-red-500 hover:text-red-700 transition" title="Remove Class">
-                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                        </button>
-                    </div>
-                `).join('');
-
-                const deptHtml = `
-                    <div class="border p-3 rounded-lg shadow-sm">
-                        <div class="flex justify-between items-center mb-2 pb-1 border-b">
-                            <h4 class="text-base font-semibold text-indigo-600">${dept.name}</h4>
-                            <div class="flex space-x-2">
-                                <button onclick="window.app.removeDepartment(${deptIndex})" 
-                                    class="text-red-500 hover:text-red-700 text-xs font-medium transition disabled:opacity-50"
-                                    title="Remove Department (Cannot be undone)">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Class List Grid -->
-                        <div class="grid grid-cols-4 gap-2 mb-3">
-                            ${classesHtml}
-                        </div>
-                        
-                        <!-- Add New Class Form -->
-                        <div class="flex space-x-2 mt-2">
-                            <input type="text" id="new-class-name-${deptId}" placeholder="Class Name (e.g., 5)" class="p-1.5 border rounded-md text-sm w-1/3">
-                            <select type="text" id="new-class-type-${deptId}" class="p-1.5 border rounded-md text-sm w-1/3">
-                                <option value="Girls">Girls</option>
-                                <option value="Boys">Boys</option>
-                            </select>
-                            <button onclick="window.app.addClass('${deptId}')" class="px-3 py-1 text-sm font-medium text-white bg-indigo-500 hover:bg-indigo-600 rounded-md transition w-1/3">
-                                Add Class
-                            </button>
-                        </div>
-                    </div>
-                `;
-                departmentsList.insertAdjacentHTML('beforeend', deptHtml);
-            });
-        }
-
-        function addDepartment() { 
-            const nameInput = document.getElementById('new-department-name');
-            const newName = nameInput.value.trim();
-            if (!newName) {
-                showMessage('Error', 'Department name cannot be empty.', 'error');
-                return;
-            }
-
-            const newId = slugify(newName);
-            
-            if (appState.config.departments.some(d => d.id === newId)) {
-                showMessage('Error', 'Department name already exists (or slugified name conflicts).', 'error');
-                return;
-            }
-
-            appState.config.departments.push({
-                id: newId,
-                name: newName,
-                classes: []
-            });
-
-            nameInput.value = '';
-            renderDepartmentsInSettings();
-            showMessage('Added!', `New department '${newName}' added. Don't forget to Save All Settings.`, 'success');
-        }
-
-        function removeDepartment(deptIndex) { 
-            if (appState.config.departments[deptIndex]) {
-                const name = appState.config.departments[deptIndex].name;
-                appState.config.departments.splice(deptIndex, 1);
-                renderDepartmentsInSettings();
-                showMessage('Removed!', `Department '${name}' removed. Don't forget to Save All Settings.`, 'success');
-            }
-        }
-        
-        function addClass(deptId) { 
-            const dept = appState.config.departments.find(d => d.id === deptId);
-            if (!dept) return;
-
-            const nameInput = document.getElementById(`new-class-name-${deptId}`);
-            const typeInput = document.getElementById(`new-class-type-${deptId}`);
-            
-            const newName = nameInput.value.trim();
-            const newType = typeInput.value;
-            
-            if (!newName) {
-                showMessage('Error', 'Class name cannot be empty.', 'error');
-                return;
-            }
-            
-            const newClassId = slugify(`${newType}-${newName}`);
-            
-            if (dept.classes.some(c => c.id === newClassId)) {
-                showMessage('Error', `Class ID '${newClassId}' already exists in this department.`, 'error');
-                return;
-            }
-
-            dept.classes.push({
-                id: newClassId,
-                name: newName,
-                type: newType
-            });
-
-            nameInput.value = '';
-            renderDepartmentsInSettings();
-            showMessage('Added!', `New class '${newName}' added to ${dept.name}. Don't forget to Save All Settings.`, 'success');
-        }
-
-        function removeClass(deptIndex, clsIndex) { 
-            const dept = appState.config.departments[deptIndex];
-            if (dept && dept.classes[clsIndex]) {
-                const name = dept.classes[clsIndex].name;
-                dept.classes.splice(clsIndex, 1);
-                renderDepartmentsInSettings();
-                showMessage('Removed!', `Class '${name}' removed from ${dept.name}. Don't forget to Save All Settings.`, 'success');
-            }
-        }
-
-        /**
-         * Saves the entire application configuration (School Info, Departments, Classes) to Firestore.
-         */
-        async function saveConfig() {
-            if (!userId || !storage) {
-                showMessage('Error', 'App not fully initialized. Cannot save config.', 'error');
-                return;
-            }
-
-            const fileInput = document.getElementById('config-schoolLogoFile');
-            const file = fileInput.files[0];
-            
-            // Start with the existing logo URL from state
-            let logoUrl = appState.config.schoolInfo.logoUrl || ''; 
-            const logoText = document.getElementById('config-schoolLogoText').value.trim() || 'T.';
-
-            if (file) {
-                // 1. Upload new image if file is present
-                if (file.size > 1024 * 1024) { // Check file size (1MB limit)
-                    showMessage('Error', 'Image size must be less than 1MB.', 'error');
-                    return;
-                }
-                showMessage('Uploading...', 'Please wait while the logo is being saved.', 'none');
-
-                try {
-                    // Note: This path is specific for the logo, still needs to be writable by user
-                    const storagePath = `logos/${appId}/school_logo`; 
-                    const fileRef = storageRef(storage, storagePath);
-                    await uploadBytes(fileRef, file);
-                    logoUrl = await getDownloadURL(fileRef); // Get the public URL
-                    showMessage('Upload Success', 'Logo image uploaded.', 'success');
-                } catch (error) {
-                    console.error("Error uploading logo:", error);
-                    showMessage('Upload Error', `Failed to upload logo: ${error.message}`, 'error');
-                    return; // Stop saving if upload fails
-                }
-            }
-            
-            // 2. Collect School Info from inputs
-            const newSchoolInfo = {
-                name: document.getElementById('config-schoolName').value.trim() || 'Tracker App',
-                logoText: logoText,
-                logoUrl: logoUrl, // Use the new URL or the existing one
-                phone: document.getElementById('config-schoolPhone').value.trim(),
-                address: document.getElementById('config-schoolAddress').value.trim(),
-                website: document.getElementById('config-schoolWebsite').value.trim(),
-            };
-            
-            // 3. Prepare the final config object
-            const newConfig = {
-                schoolInfo: newSchoolInfo,
-                departments: appState.config.departments
-            };
-
-            // --- PUBLIC PATH FOR CONFIGURATION ---
-            const configDocRef = doc(db, `artifacts/${appId}/public/data/config`, 'schoolConfig');
-
-            try {
-                await setDoc(configDocRef, newConfig);
-                appState.config = newConfig; // Update state immediately
-                renderSchoolInfo();
-                renderClassList();
-                window.app.closeModal('settings-modal', 'settings-content-wrapper');
-                showMessage('Saved!', 'Configuration and Logo updated successfully. All users now see this config.');
-            } catch (error) {
-                console.error("Error saving configuration:", error);
-                showMessage('Error', `Failed to save configuration: ${error.message}`, 'error');
-            }
-        }
-
-        // --- FIREBASE LISTENERS ---
-
-        /**
-         * Sets up the listener for the shared application configuration.
-         */
-        function setupConfigListener() {
-            if (!db) return;
-
-            if (configUnsubscribe) configUnsubscribe();
-
-            // --- PUBLIC PATH FOR CONFIGURATION ---
-            const configDocRef = doc(db, `artifacts/${appId}/public/data/config`, 'schoolConfig');
-            
-            configUnsubscribe = onSnapshot(configDocRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    appState.config = docSnap.data();
-                } else {
-                    // If no config exists, set the default one using the public path
-                    setDoc(configDocRef, DEFAULT_CONFIG); 
-                    appState.config = DEFAULT_CONFIG;
-                }
-                renderSchoolInfo();
-                renderClassList();
-            }, (error) => {
-                console.error("Error listening to shared config:", error);
-            });
-        }
-
-        /**
-         * Sets up real-time Firestore listeners for daily reports and accumulated scores.
-         */
-        function setupFirestoreListeners() {
+        function getNoteCollectionRef() {
             if (!db || !userId) {
-                console.warn("Firestore not initialized or user not authenticated.");
-                return;
+                console.error("Database or User ID is not ready.");
+                return null;
             }
-
-            setupConfigListener();
-
-            if (dailyReportUnsubscribe) dailyReportUnsubscribe();
-            if (accumulatedScoresUnsubscribe) accumulatedScoresUnsubscribe();
-
-            // --- PUBLIC PATH FOR DAILY REPORTS ---
-            const dailyReportsDocRef = doc(db, `artifacts/${appId}/public/data/daily_attendance_reports`, formatDate(appState.currentDate));
-            dailyReportUnsubscribe = onSnapshot(dailyReportsDocRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    appState.dailyReports = docSnap.data();
-                } else {
-                    appState.dailyReports = {};
-                }
-                renderClassList();
-                if (appState.selectedClassId) {
-                    renderModalContent(appState.selectedClassId);
-                }
-                hideInitialMessage();
-            }, (error) => {
-                console.error("Error listening to shared daily reports:", error);
-            });
-
-
-            // --- PUBLIC PATH FOR ACCUMULATED SCORES (Already Public) ---
-            const accumulatedCollectionRef = collection(db, `artifacts/${appId}/public/data/accumulated_class_scores`);
-            accumulatedScoresUnsubscribe = onSnapshot(accumulatedCollectionRef, (snapshot) => {
-                const newScores = {};
-                snapshot.forEach(doc => {
-                    newScores[doc.id] = doc.data();
-                });
-                appState.accumulatedScores = newScores;
-                renderClassList();
-            }, (error) => {
-                 console.error("Error listening to accumulated scores:", error);
-            });
-        }
-        
-        // --- AUTHENTICATION & INITIALIZATION ---
-
-        /**
-         * Handles the UI updates upon successful authentication.
-         */
-        function handleSuccessfulAuth(user) {
-            userId = user.uid;
-            userDisplayName = user.displayName || user.email || (user.isAnonymous ? 'Anonymous' : 'User');
-            
-            // Show Google Sign-In button only if the user is anonymous
-            document.getElementById('google-sign-in-btn').classList.toggle('hidden', !user.isAnonymous);
-
-
-            // Update UI for authenticated state
-            document.getElementById('auth-icon').innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3v-4a3 3 0 013-3h4a3 3 0 013 3v1"></path>`;
-            document.getElementById('user-auth-btn').title = `Signed in as: ${userDisplayName} | Click to copy ID / Sign Out`;
-
-
-            // Set up date and initial listeners
-            const dateInput = document.getElementById('date-selector');
-            appState.currentDate = new Date();
-            const today = formatDate(appState.currentDate);
-            
-            dateInput.value = today;
-            dateInput.max = today; 
-            document.getElementById('display-date').textContent = formatDisplayDate(appState.currentDate);
-
-            setupFirestoreListeners();
+            // Private data path: /artifacts/{appId}/users/{userId}/simple_notes
+            return collection(db, `artifacts/${appId}/users/${userId}/simple_notes`);
         }
 
-        /**
-         * Signs the user in using Google pop-up.
-         */
-        async function signInWithGoogle() {
-            showInitialMessage('Starting Google Sign-In...');
+        // --- Authentication Functions ---
+
+        /** Signs in with Google using a popup. */
+        window.signInWithGoogle = async function() {
             try {
                 const provider = new GoogleAuthProvider();
-                const result = await signInWithPopup(auth, provider);
-                handleSuccessfulAuth(result.user);
+                await signInWithPopup(auth, provider);
+                showMessage("Successfully signed in with Google!", 'success');
             } catch (error) {
                 console.error("Google Sign-In Error:", error);
-                // Specifically mention the domain error to the user
-                if (error.code === 'auth/unauthorized-domain') {
-                    showInitialMessage('Domain Not Authorized', 'Google Sign-In requires your hosting domain to be whitelisted in the Firebase Console.', false, true);
-                } else {
-                    showInitialMessage('Sign In Failed', `Error: ${error.message}`, false, true);
-                }
+                showMessage(`Google Sign-In failed: ${error.message}`, 'error');
             }
         }
-        
-        /**
-         * Signs the user out.
-         */
-        async function signOutUser() {
+
+        /** Signs out the current user. */
+        window.signOutUser = async function() {
             try {
                 await signOut(auth);
-                // The onAuthStateChanged listener will handle UI reset and anonymous fallback
+                showMessage("Successfully signed out.", 'info');
             } catch (error) {
-                console.error("Sign Out Error:", error);
-                showMessage('Sign Out Error', error.message, 'error');
+                console.error("Sign-out Error:", error);
+                showMessage(`Sign-out failed: ${error.message}`, 'error');
             }
         }
 
         /**
-         * Initializes Firebase and authenticates the user.
+         * Main function to initialize Firebase and handle initial authentication.
          */
-        async function initializeFirebase() {
+        async function initializeAppAndAuth() {
             if (!firebaseConfig) {
-                showInitialMessage('Config Error', 'Missing Firebase configuration.', false);
+                loadingIndicator.textContent = "Error: Firebase configuration is missing.";
                 return;
             }
 
             try {
-                setLogLevel('debug');
-                
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
+                const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
-                storage = getStorage(app); 
-                
-                await setPersistence(auth, browserSessionPersistence);
-                
-                // 1. Set up the state listener FIRST
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        handleSuccessfulAuth(user);
-                    } else {
-                        // User signed out or initial auth check failed/no existing user
-                        userId = null;
-                        userDisplayName = 'Guest';
-                        renderSchoolInfo();
-                        renderClassList(); // Clear class list
+                db = getFirestore(app);
+                // Optional: set log level for debugging
+                // setLogLevel('debug'); 
 
-                        document.getElementById('auth-icon').innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0v4m-5 9h2a2 2 0 002-2v-3a2 2 0 00-2-2H8a2 2 0 00-2 2v3a2 2 0 002 2z"></path>`;
-                        document.getElementById('user-auth-btn').title = 'Click to Sign In';
+                loadingIndicator.style.display = 'block';
+                
+                // 1. Initial Authentication using Canvas token or anonymously
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                // 2. Set up the state listener
+                onAuthStateChanged(auth, (user) => {
+                    loadingIndicator.style.display = 'none';
+
+                    if (user) {
+                        userId = user.uid;
+                        userIdDisplay.textContent = userId;
+                        loggedOutView.classList.add('hidden');
+                        loggedInView.classList.remove('hidden');
+                        notesContainer.classList.remove('hidden');
                         
-                        // **FIX: Explicitly sign in anonymously if unauthenticated and not using the canvas token.**
-                        if (!initialAuthToken) {
-                            showInitialMessage('Starting Anonymous Session...');
-                            signInAnonymously(auth).catch(err => {
-                                console.error("Anonymous Sign-In Failed:", err);
-                                showInitialMessage('Error', `Auth failed: ${err.message}. Please check console.`, false, true);
-                            });
-                        } else {
-                            // If we were in the canvas env and somehow became unauth, but the token is there, rely on the token
-                             hideInitialMessage(); 
-                        }
+                        // Start listening to notes for the current user
+                        setupRealtimeListener();
+
+                    } else {
+                        userId = null;
+                        userIdDisplay.textContent = 'N/A';
+                        loggedOutView.classList.remove('hidden');
+                        loggedInView.classList.add('hidden');
+                        notesContainer.classList.add('hidden');
+
+                        // Stop listening when user logs out
+                        unsubscribeNotes();
                     }
                 });
-
-                // 2. Perform initial authentication attempt (token takes precedence)
-                if (initialAuthToken) { 
-                    showInitialMessage('Authenticating with Custom Token...');
-                    try {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                    } catch (e) {
-                         // Fallback handled by onAuthStateChanged if token fails
-                        console.warn("Custom token failed. Relying on persistent session or anonymous fallback.");
-                    }
-                } else if (!auth.currentUser) {
-                     // If no custom token and no persistent session, onAuthStateChanged will trigger anonymous sign-in.
-                     showInitialMessage('Waiting for Authentication...');
-                } else {
-                    // A persistent user exists. Wait for onAuthStateChanged to resolve.
-                    hideInitialMessage();
-                }
 
             } catch (error) {
                 console.error("Firebase Initialization Error:", error);
-                showInitialMessage('Error', `Init failed: ${error.message}`, false);
+                loadingIndicator.textContent = `Initialization Error: ${error.message}`;
             }
         }
         
-        // --- PUBLIC INTERFACE FUNCTIONS (Attached to window.app) ---
+        // --- Firestore Functions ---
+
+        /** Adds a new note to the user's collection. */
+        noteForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = noteText.value.trim();
+
+            if (!text) {
+                showMessage("Note cannot be empty.", 'info');
+                return;
+            }
+
+            if (!userId) {
+                showMessage("Please sign in to save notes.", 'error');
+                return;
+            }
+
+            const notesColRef = getNoteCollectionRef();
+            if (!notesColRef) return;
+
+            try {
+                await addDoc(notesColRef, {
+                    text: text,
+                    createdAt: serverTimestamp(),
+                    userId: userId 
+                });
+                noteText.value = '';
+                showMessage("Note saved successfully!", 'success');
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                showMessage(`Failed to save note: ${error.message}`, 'error');
+            }
+        });
+
+        /**
+         * Sets up the real-time listener for the user's notes.
+         */
+        function setupRealtimeListener() {
+            // Stop any existing listener
+            unsubscribeNotes(); 
+            notesList.innerHTML = '';
+            // FIX: Use the cached constant reference instead of document.getElementById
+            noNotesMessage.classList.add('hidden');
+
+            const notesColRef = getNoteCollectionRef();
+            if (!notesColRef) return;
+
+            // Define the query: get all notes for the current user
+            // NOTE: We avoid using orderBy('createdAt') in the query to prevent index issues. 
+            // We will fetch all data and sort it in memory.
+            const q = query(notesColRef); 
+
+            // Start listening for real-time updates
+            unsubscribeNotes = onSnapshot(q, (snapshot) => {
+                const notes = [];
+                snapshot.forEach(doc => {
+                    // Collect notes with their ID and data
+                    notes.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Sort notes in memory by createdAt (descending)
+                notes.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+
+                renderNotes(notes);
+
+            }, (error) => {
+                console.error("Firestore onSnapshot error:", error);
+                showMessage(`Error fetching notes: ${error.message}`, 'error');
+                renderNotes([]); // Clear the list on error
+            });
+        }
         
-        const appInterface = {
-            handleDateChange: function(event) {
-                if (!userId) {
-                    showMessage('Access Denied', 'Please sign in to change the date.', 'error');
-                    return;
+        /**
+         * Renders the list of notes to the UI.
+         * @param {Array<Object>} notes - The array of note objects.
+         */
+        function renderNotes(notes) {
+            notesList.innerHTML = ''; // Clear existing notes
+
+            if (notes.length === 0) {
+                // FIX: Use the cached constant reference
+                noNotesMessage.classList.remove('hidden');
+                return;
+            }
+            // FIX: Use the cached constant reference
+            noNotesMessage.classList.add('hidden');
+
+
+            notes.forEach(note => {
+                const noteElement = document.createElement('div');
+                noteElement.className = 'bg-white p-4 shadow-sm rounded-lg border border-gray-100 hover:shadow-md transition duration-150';
+                
+                // Format the timestamp
+                let dateStr = 'Pending...';
+                if (note.createdAt && note.createdAt.toDate) {
+                    dateStr = note.createdAt.toDate().toLocaleString();
                 }
-                const newDate = new Date(event.target.value);
-                // Adjust for local timezone offset when creating the Date object from the input string
-                appState.currentDate = new Date(newDate.getTime() + newDate.getTimezoneOffset() * 60000); 
-                document.getElementById('display-date').textContent = formatDisplayDate(appState.currentDate);
 
-                // Re-initializes listeners for the new date
-                showInitialMessage('Fetching...', null, true, false);
-                setupFirestoreListeners(); 
-            },
+                noteElement.innerHTML = `
+                    <p class="text-gray-800 whitespace-pre-wrap">${note.text}</p>
+                    <div class="mt-2 flex justify-between items-center text-xs text-gray-400">
+                        <span>Saved: ${dateStr}</span>
+                    </div>
+                `;
+                notesList.appendChild(noteElement);
+            });
+        }
 
-            handleAuthAction: async function() {
-                if (userId) {
-                    // Currently signed in: Action is Copy ID / Sign Out
-                    const action = confirm(`Signed in as ${userDisplayName}.\nUser ID: ${userId}\n\nDo you want to sign out? \n\n(Cancel to copy User ID to clipboard)`);
-                    if (action) {
-                        await signOutUser();
-                    } else {
-                         // Copy User ID
-                        const id = userId;
-                        try {
-                            const tempInput = document.createElement('textarea');
-                            tempInput.value = id;
-                            document.body.appendChild(tempInput);
-                            tempInput.select();
-                            document.execCommand('copy');
-                            document.body.removeChild(tempInput);
-                            showMessage('Copied!', `User ID copied: ${id}`);
-                        } catch (err) {
-                            console.error('Could not copy text: ', err);
-                        }
-                    }
-                } else {
-                    // Not signed in: Action is Google Sign In (Anonymous is handled automatically now)
-                    await signInWithGoogle();
-                }
-            },
-
-            selectClass: function(classId) {
-                if (!userId) {
-                    showMessage('Access Denied', 'Please sign in to record a report.', 'error');
-                    return;
-                }
-                appState.selectedClassId = classId;
-                renderModalContent(classId);
-                this.openModal('report-modal', 'modal-content-wrapper');
-            },
-
-            openModal: function(modalId, contentId) {
-                const modal = document.getElementById(modalId);
-                const contentWrapper = document.getElementById(contentId);
-                
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-                
-                setTimeout(() => {
-                    contentWrapper.classList.remove('scale-95', 'opacity-0');
-                    contentWrapper.classList.add('scale-100', 'opacity-100');
-                    if (modalId === 'report-modal') {
-                        document.getElementById('totalStudents')?.focus();
-                    }
-                }, 10);
-            },
-
-            closeModal: function(modalId, contentId) {
-                const modal = document.getElementById(modalId);
-                const contentWrapper = document.getElementById(contentId);
-
-                contentWrapper.classList.remove('scale-100', 'opacity-100');
-                contentWrapper.classList.add('scale-95', 'opacity-0');
-                
-                setTimeout(() => {
-                    modal.classList.remove('flex');
-                    modal.classList.add('hidden');
-                    if (modalId === 'report-modal') {
-                        appState.selectedClassId = null;
-                    }
-                }, 300); 
-            },
-            
-            // Settings/Config methods exposed
-            openSettingsModal: function() {
-                if (!userId) {
-                    showMessage('Access Denied', 'Please sign in to change settings.', 'error');
-                    return;
-                }
-                const info = appState.config.schoolInfo || {};
-                
-                // 1. Populate text fields
-                document.getElementById('config-schoolName').value = info.name || '';
-                document.getElementById('config-schoolPhone').value = info.phone || '';
-                document.getElementById('config-schoolAddress').value = info.address || '';
-                document.getElementById('config-schoolWebsite').value = info.website || '';
-                document.getElementById('config-schoolLogoText').value = info.logoText || 'T.';
-                
-                // 2. Handle Logo Preview
-                const previewImg = document.getElementById('config-logo-preview');
-                const previewText = document.getElementById('config-logo-text-preview');
-                
-                if (info.logoUrl) {
-                    previewImg.src = info.logoUrl;
-                    previewImg.classList.remove('hidden');
-                    previewText.classList.add('hidden');
-                } else {
-                    previewText.textContent = info.logoText || 'T.';
-                    previewImg.classList.add('hidden');
-                    previewText.classList.remove('hidden');
-                }
-                
-                // 3. Setup file input listener for immediate preview
-                const fileInput = document.getElementById('config-schoolLogoFile');
-                fileInput.value = null; // Clear any previously selected file 
-                fileInput.onchange = (event) => {
-                    const file = event.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            previewImg.src = e.target.result;
-                            previewImg.classList.remove('hidden');
-                            previewText.classList.add('hidden');
-                        };
-                        reader.readAsDataURL(file);
-                    } else if (!info.logoUrl) {
-                        // Revert to text if file cleared and no existing URL
-                        previewImg.classList.add('hidden');
-                        previewText.classList.remove('hidden');
-                        previewText.textContent = document.getElementById('config-schoolLogoText').value.trim() || 'T.';
-                    }
-                };
-
-                renderDepartmentsInSettings();
-                this.openModal('settings-modal', 'settings-content-wrapper');
-            },
-
-            signInWithGoogle: signInWithGoogle,
-            addDepartment: addDepartment,
-            removeDepartment: removeDepartment,
-            addClass: addClass,
-            removeClass: removeClass,
-            saveConfig: saveConfig,
-            updateReportEntry: updateReportEntry,
-        };
-
-        window.app = appInterface; 
-
-        // --- INITIAL SETUP ---
-        
-        window.onload = function() {
-            initializeFirebase();
-        };
+        // --- Start the Application ---
+        window.addEventListener('load', initializeAppAndAuth);
 
     </script>
 </body>
