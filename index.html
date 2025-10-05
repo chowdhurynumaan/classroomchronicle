@@ -80,10 +80,26 @@
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-        // Global variables provided by the Canvas environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // =========================================================================
+        // YOUR ACTUAL FIREBASE CONFIGURATION (Provided by the user)
+        // =========================================================================
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCtsveJ8hmw6JJN4YlouNuHhmvSYumiMos", 
+            authDomain: "classroom-chronicle-l6lhk.firebaseapp.com",
+            projectId: "classroom-chronicle-l6lhk",
+            storageBucket: "classroom-chronicle-l6lhk.firebasestorage.app",
+            messagingSenderId: "642583297310",
+            appId: "1:642583297310:web:fdb8da9ab0f01cd9aa9d0f"
+        };
+        // =========================================================================
+        
+        // This variable is used for the security path in Firestore and should be a unique identifier for your app instance.
+        const appId = FIREBASE_CONFIG.projectId || 'default-app-id'; 
+
+        // The following two variables are environment specific and can be set to null 
+        // when deploying to a public host like GitHub Pages.
+        const firebaseConfig = FIREBASE_CONFIG;
+        const initialAuthToken = null; 
 
         let db, auth, userId = null;
         let unsubscribeNotes = () => {}; // Placeholder for the unsubscribe function
@@ -97,7 +113,6 @@
         const noteText = document.getElementById('note-text');
         const userIdDisplay = document.getElementById('user-id-display');
         const messageBox = document.getElementById('message-box');
-        // FIX: Cache the reference to the "no notes found" message element
         const noNotesMessage = document.getElementById('no-notes');
 
         // --- Utility Functions ---
@@ -163,8 +178,8 @@
          * Main function to initialize Firebase and handle initial authentication.
          */
         async function initializeAppAndAuth() {
-            if (!firebaseConfig) {
-                loadingIndicator.textContent = "Error: Firebase configuration is missing.";
+            if (!firebaseConfig || !firebaseConfig.apiKey) {
+                loadingIndicator.textContent = "Error: Firebase configuration is invalid or missing keys.";
                 return;
             }
 
@@ -172,15 +187,16 @@
                 const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
-                // Optional: set log level for debugging
-                // setLogLevel('debug'); 
+                // setLogLevel('debug'); // Uncomment for debugging Firestore logs
 
                 loadingIndicator.style.display = 'block';
                 
-                // 1. Initial Authentication using Canvas token or anonymously
+                // 1. Initial Authentication using token or anonymously if no token
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
                 } else {
+                    // When deployed publicly, we sign in anonymously first.
+                    // The user will then be prompted to use Google Sign-In to fully authenticate.
                     await signInAnonymously(auth);
                 }
 
@@ -188,24 +204,35 @@
                 onAuthStateChanged(auth, (user) => {
                     loadingIndicator.style.display = 'none';
 
-                    if (user) {
+                    if (user && user.isAnonymous === false) {
+                        // User is fully logged in (via Google in this case)
                         userId = user.uid;
                         userIdDisplay.textContent = userId;
                         loggedOutView.classList.add('hidden');
                         loggedInView.classList.remove('hidden');
                         notesContainer.classList.remove('hidden');
                         
-                        // Start listening to notes for the current user
                         setupRealtimeListener();
 
+                    } else if (user && user.isAnonymous === true) {
+                        // User is signed in anonymously (default state for public deployment)
+                        userId = user.uid;
+                        userIdDisplay.textContent = 'Anonymous (Sign in with Google below)';
+                        loggedOutView.classList.remove('hidden'); // Show sign-in button
+                        loggedInView.classList.add('hidden');
+                        notesContainer.classList.add('hidden');
+                        
+                        // We still call the listener for anonymous users, but usually they won't have data
+                        setupRealtimeListener(); 
+                        
                     } else {
+                        // No user signed in (shouldn't happen often after anonymous sign-in, but good practice)
                         userId = null;
                         userIdDisplay.textContent = 'N/A';
                         loggedOutView.classList.remove('hidden');
                         loggedInView.classList.add('hidden');
                         notesContainer.classList.add('hidden');
 
-                        // Stop listening when user logs out
                         unsubscribeNotes();
                     }
                 });
@@ -228,8 +255,8 @@
                 return;
             }
 
-            if (!userId) {
-                showMessage("Please sign in to save notes.", 'error');
+            if (!userId || auth.currentUser.isAnonymous) {
+                showMessage("Please sign in with Google to save your notes permanently.", 'error');
                 return;
             }
 
@@ -257,22 +284,18 @@
             // Stop any existing listener
             unsubscribeNotes(); 
             notesList.innerHTML = '';
-            // FIX: Use the cached constant reference instead of document.getElementById
             noNotesMessage.classList.add('hidden');
 
             const notesColRef = getNoteCollectionRef();
             if (!notesColRef) return;
 
             // Define the query: get all notes for the current user
-            // NOTE: We avoid using orderBy('createdAt') in the query to prevent index issues. 
-            // We will fetch all data and sort it in memory.
             const q = query(notesColRef); 
 
             // Start listening for real-time updates
             unsubscribeNotes = onSnapshot(q, (snapshot) => {
                 const notes = [];
                 snapshot.forEach(doc => {
-                    // Collect notes with their ID and data
                     notes.push({ id: doc.id, ...doc.data() });
                 });
 
@@ -283,7 +306,9 @@
 
             }, (error) => {
                 console.error("Firestore onSnapshot error:", error);
-                showMessage(`Error fetching notes: ${error.message}`, 'error');
+                // Note: Security rule errors often appear here when users try to save/fetch data 
+                // without proper authentication (like anonymous users trying to write to a protected path).
+                showMessage(`Error fetching notes: ${error.message}. Ensure you are signed in with Google.`, 'error');
                 renderNotes([]); // Clear the list on error
             });
         }
@@ -296,11 +321,9 @@
             notesList.innerHTML = ''; // Clear existing notes
 
             if (notes.length === 0) {
-                // FIX: Use the cached constant reference
                 noNotesMessage.classList.remove('hidden');
                 return;
             }
-            // FIX: Use the cached constant reference
             noNotesMessage.classList.add('hidden');
 
 
