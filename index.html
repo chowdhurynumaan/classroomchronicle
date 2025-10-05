@@ -156,12 +156,12 @@
             <p id="status-text" class="text-sm font-semibold text-gray-700">Connecting...</p>
             <p id="error-detail" class="text-xs text-red-500 mt-1 hidden"></p>
 
-            <!-- Google Sign-In Button (Hidden initially, shown if explicit sign-in is needed) -->
+            <!-- Google Sign-In Button (Hidden initially, shown if needed/functional) -->
             <button id="google-sign-in-btn" 
                 onclick="window.app.signInWithGoogle()"
                 class="google-sign-in-btn mt-4 text-xs flex items-center justify-center mx-auto space-x-2 hidden">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12.24 10.274a1.88 1.88 0 0 0-.074-.325h-.001c-.004-.015-.008-.03-.012-.045a4.2 4.2 0 0 0-3.92-3.14V7.5c.34-.05.68-.076 1.02-.076a5.72 5.72 0 0 1 5.61 5.76c0 .41-.05.81-.13 1.2h-.002c-.01.03-.02.05-.03.07a4.2 4.2 0 0 0-3.69 2.53v.001c-.1.18-.21.35-.34.5-.2.2-.4.36-.62.53l.004-.002a7.6 7.6 0 0 0 5.17-5.54 7.6 7.6 0 0 0-.005-.33 7.6 7.6 0 0 0-7.39-7.38z" fill="#fff" opacity="0.6"/><path d="M11.95 24c-.21 0-.42-.01-.63-.03a11.97 11.97 0 0 1-10.7-10.7c0-.21.01-.42.03-.63h.001c.02-.38.07-.76.13-1.13a1.88 1.88 0 0 0-.13 1.13 10.15 10.15 0 0 0 10.12 10.12c.21 0 .42-.01.63-.03l-.001.002zM12 0c.21 0 .42.01.63.03a11.97 11.97 0 0 1 10.7 10.7c0 .21-.01.42-.03.63h-.001c-.02.38-.07.76-.13 1.13a1.88 1.88 0 0 0 .13-1.13A10.15 10.15 0 0 0 11.88.11c-.21 0-.42.01-.63.03l.001-.002z" fill="#fff" opacity="0.4"/></svg>
-                <span>Sign In with Google</span>
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12.24 10.274a1.88 1.88 0 0 0-.074-.325h-.001c-.004-.015-.008-.03-.012-.045a4.2 4.2 0 0 0-3.92-3.14V7.5c.34-.05.68-.076 1.02-.076a5.72 5.72 0 0 1 5.61 5.76c0 .41-.05.81-.13 1.2h-.002c-.01.03-.02.05-.03.07a4.2 4.2 0 0 0-3.69 2.53v.001c-.1.18-.21.35-.34.5-.2.2-.4.36-.62.53l.004-.002a7.6 7.6 0 0 0 5.17-5.54 7.6 7.6 0 0 0-.005-.33 7.6 7.6 0 0 0-7.39-7.38z" fill="#fff" opacity="0.6"/><path d="M11.95 24c-.21 0-.42-.01-.63-.03a11.97 11.97 0 0 1-10.7-10.7c0-.21.01-.42.03-.63h.001c.02-.38.07-.76.13-1.13a1.88 1.88 0 0 0-.13 1.13 10.15 10.15 0 0 0 10.12 10.12c.21 0 .42-.01.63-.03l-.001.002zM12 0c.21 0 .42-.01.63.03a11.97 11.97 0 0 1 10.7 10.7c0 .21-.01.42-.03.63h-.001c-.02.38-.07.76-.13 1.13a1.88 1.88 0 0 0 .13-1.13A10.15 10.15 0 0 0 11.88.11c-.21 0-.42.01-.63.03l.001-.002z" fill="#fff" opacity="0.4"/></svg>
+                <span>Sign In with Google (Requires Domain Auth)</span>
             </button>
         </div>
     </div>
@@ -1117,7 +1117,11 @@
          */
         function handleSuccessfulAuth(user) {
             userId = user.uid;
-            userDisplayName = user.displayName || user.email || 'User';
+            userDisplayName = user.displayName || user.email || (user.isAnonymous ? 'Anonymous' : 'User');
+            
+            // Show Google Sign-In button only if the user is anonymous
+            document.getElementById('google-sign-in-btn').classList.toggle('hidden', !user.isAnonymous);
+
 
             // Update UI for authenticated state
             document.getElementById('auth-icon').innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3v-4a3 3 0 013-3h4a3 3 0 013 3v1"></path>`;
@@ -1140,14 +1144,19 @@
          * Signs the user in using Google pop-up.
          */
         async function signInWithGoogle() {
-            showInitialMessage('Signing in with Google...');
+            showInitialMessage('Starting Google Sign-In...');
             try {
                 const provider = new GoogleAuthProvider();
                 const result = await signInWithPopup(auth, provider);
                 handleSuccessfulAuth(result.user);
             } catch (error) {
                 console.error("Google Sign-In Error:", error);
-                showInitialMessage('Sign In Failed', `Error: ${error.message}`, false, true);
+                // Specifically mention the domain error to the user
+                if (error.code === 'auth/unauthorized-domain') {
+                    showInitialMessage('Domain Not Authorized', 'Google Sign-In requires your hosting domain to be whitelisted in the Firebase Console.', false, true);
+                } else {
+                    showInitialMessage('Sign In Failed', `Error: ${error.message}`, false, true);
+                }
             }
         }
         
@@ -1157,7 +1166,7 @@
         async function signOutUser() {
             try {
                 await signOut(auth);
-                // The onAuthStateChanged listener will handle UI reset
+                // The onAuthStateChanged listener will handle UI reset and anonymous fallback
             } catch (error) {
                 console.error("Sign Out Error:", error);
                 showMessage('Sign Out Error', error.message, 'error');
@@ -1183,25 +1192,7 @@
                 
                 await setPersistence(auth, browserSessionPersistence);
                 
-                // 1. Try to sign in using the provided custom token (Canvas environment login)
-                if (initialAuthToken) { 
-                    showInitialMessage('Authenticating...');
-                    try {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                    } catch (e) {
-                         // Fallback to anonymous if custom token fails (shouldn't happen in canvas)
-                        console.warn("Custom token failed. Falling back to anonymous login.");
-                        await signInAnonymously(auth);
-                    }
-                } else {
-                    // If no token is provided by the environment, we rely on the persistent auth state.
-                    // If there's no user, we prompt for Google Sign-In.
-                    if (!auth.currentUser) {
-                        showInitialMessage('Please Sign In', 'User authentication required.', false, true);
-                    }
-                }
-                
-                // 2. Set up the state listener
+                // 1. Set up the state listener FIRST
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         handleSuccessfulAuth(user);
@@ -1215,14 +1206,36 @@
                         document.getElementById('auth-icon').innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0v4m-5 9h2a2 2 0 002-2v-3a2 2 0 00-2-2H8a2 2 0 00-2 2v3a2 2 0 002 2z"></path>`;
                         document.getElementById('user-auth-btn').title = 'Click to Sign In';
                         
-                        // Only show sign-in prompt if we didn't just log in via a token
+                        // **FIX: Explicitly sign in anonymously if unauthenticated and not using the canvas token.**
                         if (!initialAuthToken) {
-                            showInitialMessage('Please Sign In', 'User authentication required.', false, true);
+                            showInitialMessage('Starting Anonymous Session...');
+                            signInAnonymously(auth).catch(err => {
+                                console.error("Anonymous Sign-In Failed:", err);
+                                showInitialMessage('Error', `Auth failed: ${err.message}. Please check console.`, false, true);
+                            });
                         } else {
-                            hideInitialMessage(); // In case we signed out but a token exists (e.g., in a new tab)
+                            // If we were in the canvas env and somehow became unauth, but the token is there, rely on the token
+                             hideInitialMessage(); 
                         }
                     }
                 });
+
+                // 2. Perform initial authentication attempt (token takes precedence)
+                if (initialAuthToken) { 
+                    showInitialMessage('Authenticating with Custom Token...');
+                    try {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    } catch (e) {
+                         // Fallback handled by onAuthStateChanged if token fails
+                        console.warn("Custom token failed. Relying on persistent session or anonymous fallback.");
+                    }
+                } else if (!auth.currentUser) {
+                     // If no custom token and no persistent session, onAuthStateChanged will trigger anonymous sign-in.
+                     showInitialMessage('Waiting for Authentication...');
+                } else {
+                    // A persistent user exists. Wait for onAuthStateChanged to resolve.
+                    hideInitialMessage();
+                }
 
             } catch (error) {
                 console.error("Firebase Initialization Error:", error);
@@ -1270,7 +1283,7 @@
                         }
                     }
                 } else {
-                    // Not signed in: Action is Sign In
+                    // Not signed in: Action is Google Sign In (Anonymous is handled automatically now)
                     await signInWithGoogle();
                 }
             },
