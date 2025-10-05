@@ -36,7 +36,7 @@
             </div>
             
             <div id="logged-out-view" class="hidden text-center">
-                <p class="text-gray-600 mb-4">Please sign in to access your private notes.</p>
+                <p class="text-gray-600 mb-4">Please sign in to view and contribute to the **shared notes**.</p>
                 <button onclick="signInWithGoogle()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50">
                     <svg class="inline-block w-5 h-5 mr-2 -mt-1" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M22.001 12.185c0-.986-.098-1.92-.262-2.812H12.03v5.334h5.686c-.244 1.25-.89 2.457-1.84 3.486l-.001.002-4.008 3.097v.002h.003c2.723 0 5.25-1.07 7.147-3.003C21.436 16.594 22 14.484 22 12.185z" fill="#4285F4"/><path d="M12.03 22c3.23 0 5.92-1.066 7.892-2.887l-4.006-3.097c-1.12.722-2.557 1.148-3.886 1.148-2.986 0-5.51-2.007-6.425-4.706H1.54v.033C3.41 19.336 7.37 22 12.03 22z" fill="#34A853"/><path d="M5.605 13.911c-.24-.722-.375-1.488-.375-2.261 0-.773.135-1.538.375-2.26l-.002-.016H1.539v2.293c.725 3.09 3.553 5.418 6.577 5.418.995 0 1.94-.216 2.784-.582l-2.046-1.58C6.918 15.65 6.136 14.88 5.605 13.911z" fill="#FBBC05"/><path d="M12.03 6.94c1.652 0 3.085.674 4.234 1.764L19.53 5.093c-2.015-1.91-4.7-3.093-7.498-3.093C7.37 2 3.41 4.67 1.54 8.083h4.065c.915-2.698 3.439-4.706 6.425-4.706z" fill="#EA4335"/></svg>
                     Sign in with Google
@@ -54,10 +54,10 @@
                 
                 <!-- Notes Input Form -->
                 <form id="note-form" class="space-y-4">
-                    <textarea id="note-text" rows="3" placeholder="Write a new private note here..." 
+                    <textarea id="note-text" rows="3" placeholder="Write a new shared note here..." 
                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 resize-none"></textarea>
                     <button type="submit" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 rounded-lg transition duration-200">
-                        Save Note
+                        Share Note
                     </button>
                 </form>
             </div>
@@ -65,7 +65,7 @@
 
         <!-- Notes Display Section -->
         <div id="notes-container" class="w-full max-w-xl hidden">
-            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Your Private Notes</h2>
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Public Shared Notes</h2>
             <div id="notes-list" class="space-y-3">
                 <p id="no-notes" class="text-gray-500 text-center py-4 border border-dashed border-gray-300 rounded-lg">No notes found. Add one above!</p>
                 <!-- Notes will be inserted here -->
@@ -137,16 +137,17 @@
         }
 
         /**
-         * Gets the Firestore collection reference for the user's private notes.
+         * Gets the Firestore collection reference for the shared public notes.
          * @returns {import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js").CollectionReference}
          */
         function getNoteCollectionRef() {
-            if (!db || !userId) {
-                console.error("Database or User ID is not ready.");
+            if (!db) {
+                console.error("Database is not ready.");
                 return null;
             }
-            // Private data path: /artifacts/{appId}/users/{userId}/simple_notes
-            return collection(db, `artifacts/${appId}/users/${userId}/simple_notes`);
+            // Public data path: /artifacts/{appId}/public/data/shared_notes
+            // All users read and write to this collection.
+            return collection(db, `artifacts/${appId}/public/data/shared_notes`);
         }
 
         // --- Authentication Functions ---
@@ -204,15 +205,13 @@
                     // This path is for the secure Canvas environment
                     await signInWithCustomToken(auth, initialAuthToken);
                 } 
-                // We intentionally skip automatic sign-in (anonymous or otherwise) here, 
-                // relying on the user to click the Google sign-in button.
 
                 // 2. Set up the state listener
                 onAuthStateChanged(auth, (user) => {
                     loadingIndicator.style.display = 'none';
 
-                    if (user && user.isAnonymous === false) {
-                        // User is fully logged in (via Google in this case)
+                    if (user) {
+                        // User is signed in (either Google or Anonymous)
                         userId = user.uid;
                         userIdDisplay.textContent = userId;
                         loggedOutView.classList.add('hidden');
@@ -221,17 +220,6 @@
                         
                         setupRealtimeListener();
 
-                    } else if (user && user.isAnonymous === true) {
-                        // User is signed in anonymously (only occurs if Anonymous Auth is enabled or via initialAuthToken)
-                        userId = user.uid;
-                        userIdDisplay.textContent = 'Anonymous (Sign in with Google below)';
-                        loggedOutView.classList.remove('hidden'); // Show sign-in button
-                        loggedInView.classList.add('hidden');
-                        notesContainer.classList.add('hidden');
-                        
-                        // We still call the listener for anonymous users, but usually they won't have data
-                        setupRealtimeListener(); 
-                        
                     } else {
                         // No user signed in
                         userId = null;
@@ -262,10 +250,10 @@
                 return;
             }
 
-            // Check if user is logged in via Google (not anonymous)
+            // Check if user is logged in at all (required for the public write rule)
             const currentUser = auth.currentUser;
-            if (!currentUser || currentUser.isAnonymous) {
-                showMessage("Please sign in with Google to save your notes permanently.", 'error');
+            if (!currentUser) {
+                showMessage("Please sign in to share a note.", 'error');
                 return;
             }
 
@@ -276,18 +264,19 @@
                 await addDoc(notesColRef, {
                     text: text,
                     createdAt: serverTimestamp(),
+                    // Storing the userId for attribution, even in the public collection
                     userId: userId 
                 });
                 noteText.value = '';
-                showMessage("Note saved successfully!", 'success');
+                showMessage("Note shared successfully with everyone!", 'success');
             } catch (error) {
                 console.error("Error adding document: ", error);
-                showMessage(`Failed to save note: ${error.message}`, 'error');
+                showMessage(`Failed to share note: ${error.message}. Check your security rules for public write access.`, 'error');
             }
         });
 
         /**
-         * Sets up the real-time listener for the user's notes.
+         * Sets up the real-time listener for the public shared notes.
          */
         function setupRealtimeListener() {
             // Stop any existing listener
@@ -298,8 +287,7 @@
             const notesColRef = getNoteCollectionRef();
             if (!notesColRef) return;
 
-            // Define the query: get all notes for the current user
-            // We use the collection reference which is scoped to the current user's path
+            // Define the query: listen to all documents in the public shared collection
             const q = query(notesColRef); 
 
             // Start listening for real-time updates
@@ -309,16 +297,16 @@
                     notes.push({ id: doc.id, ...doc.data() });
                 });
 
-                // Sort notes in memory by createdAt (descending)
+                // Sort notes in memory by createdAt (descending) to show newest first.
+                // Note: We sort client-side to adhere to the constraint of avoiding orderBy().
                 notes.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
 
                 renderNotes(notes);
 
             }, (error) => {
                 console.error("Firestore onSnapshot error:", error);
-                // Note: Security rule errors often appear here when users try to save/fetch data 
-                // without proper authentication (like anonymous users trying to write to a protected path).
-                showMessage(`Error fetching notes: ${error.message}. Ensure you are signed in with Google and your Firestore security rules permit access.`, 'error');
+                // Note: Security rule errors often appear here.
+                showMessage(`Error fetching notes: ${error.message}. Ensure your Firestore security rules permit public read access.`, 'error');
                 renderNotes([]); // Clear the list on error
             });
         }
@@ -346,11 +334,15 @@
                 if (note.createdAt && note.createdAt.toDate) {
                     dateStr = note.createdAt.toDate().toLocaleString();
                 }
+                
+                // Display the user ID to show who contributed the note
+                const contributorId = note.userId || 'Unknown User';
 
                 noteElement.innerHTML = `
                     <p class="text-gray-800 whitespace-pre-wrap">${note.text}</p>
-                    <div class="mt-2 flex justify-between items-center text-xs text-gray-400">
+                    <div class="mt-2 flex flex-col md:flex-row justify-between items-start md:items-center text-xs text-gray-400">
                         <span>Saved: ${dateStr}</span>
+                        <span class="mt-1 md:mt-0">By: <span class="font-mono text-gray-500">${contributorId}</span></span>
                     </div>
                 `;
                 notesList.appendChild(noteElement);
