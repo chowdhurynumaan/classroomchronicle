@@ -419,18 +419,21 @@
          */
         function renderRequestList(allRequests, currentUser, isAdmin) {
             
-            // 1. Filtering Logic
-            const filteredRequests = isAdmin 
-                ? allRequests 
-                : allRequests.filter(req => req.userId === currentUser.uid);
+            // 1. Filtering Logic - MODIFIED TO SHOW ALL REQUESTS TO EVERYONE
+            // Previously: const filteredRequests = isAdmin ? allRequests : allRequests.filter(req => req.userId === currentUser.uid);
+            const filteredRequests = allRequests;
 
             // 2. Update Header
-            listHeader.textContent = isAdmin ? 'All Submitted Requests (Admin View)' : 'Your Submitted Requests';
+            // Update header to reflect that all requests are shown, regardless of role.
+            listHeader.textContent = 'All Submitted Requests';
+            if (isAdmin) {
+                listHeader.textContent += ' (Admin View)';
+            }
 
             // 3. Handle Empty State
             if (filteredRequests.length === 0) {
                 requestList.innerHTML = `<p class="text-gray-500 italic p-4 bg-white rounded-xl shadow-sm">
-                    ${isAdmin ? 'The collection is empty.' : 'You have not submitted any requests yet.'}
+                    The collection is empty.
                 </p>`;
                 noRequestsMessage.classList.add('hidden'); // Ensure placeholder is not used if we generate the custom message
                 return;
@@ -439,17 +442,21 @@
             // 4. Render Requests
             requestList.innerHTML = filteredRequests.map(req => {
                 const formattedDate = new Date(req.timestamp).toLocaleString();
-                const userName = isAdmin ? req.userName : 'You';
+                const userName = isAdmin ? req.userName : req.userName || req.userEmail; // Show full name/email for non-admin too
+                
+                // Highlight the card if it belongs to the current user
+                const isCurrentUserRequest = currentUser.uid === req.userId;
                 
                 let cardHtml = `
-                    <div class="request-card bg-white p-5 rounded-xl shadow-lg border-l-4 ${isAdmin ? 'border-red-600' : 'border-indigo-500'}">
+                    <div class="request-card bg-white p-5 rounded-xl shadow-lg border-l-4 
+                        ${isAdmin ? 'border-red-600' : isCurrentUserRequest ? 'border-indigo-500' : 'border-gray-300'}">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3">
                             <div class="mb-2 sm:mb-0">
                                 ${getStatusTag(req.status)}
                             </div>
                             <div class="text-right text-xs text-gray-500">
-                                <p>${userName} submitted on ${formattedDate}</p>
-                                ${isAdmin ? `<p class="font-medium text-gray-700 mt-1">${req.userEmail}</p>` : ''}
+                                <p>${isCurrentUserRequest ? 'You' : userName} submitted on ${formattedDate}</p>
+                                <p class="text-4xs font-mono text-gray-400 mt-0.5">${req.userId}</p>
                             </div>
                         </div>
 
