@@ -67,6 +67,26 @@
             height: 100%;
             cursor: pointer;
         }
+
+        /* Ensure fixed header/footer for settings modal */
+        #settings-content-wrapper {
+            max-height: 90%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Custom style for Google Sign-In button to match aesthetics */
+        .google-sign-in-btn {
+            background-color: #4285F4;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background-color 0.15s;
+        }
+        .google-sign-in-btn:hover {
+            background-color: #357ae8;
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -90,9 +110,13 @@
                     <button onclick="window.app.openSettingsModal()" class="p-1.5 rounded-lg bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600 transition duration-150 text-gray-500" title="Manage Departments and School Info">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.228.016 2.449-1.228z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                     </button>
-                    <!-- User ID Copy Button (Icon only) -->
-                    <button id="user-id-display" class="p-1.5 rounded-lg bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600 transition duration-150 text-gray-500" title="Click to copy User ID">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0v4m-5 9h2a2 2 0 002-2v-3a2 2 0 00-2-2H8a2 2 0 00-2 2v3a2 2 0 002 2z"></path></svg>
+                    <!-- User ID Copy/Sign-Out Button (Icon only) -->
+                    <button id="user-auth-btn" 
+                        class="p-1.5 rounded-lg bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600 transition duration-150 text-gray-500" 
+                        title="Click to copy User ID / Sign Out"
+                        onclick="window.app.handleAuthAction()">
+                        <!-- Icon will be dynamically set based on auth state -->
+                        <svg id="auth-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0v4m-5 9h2a2 2 0 002-2v-3a2 2 0 00-2-2H8a2 2 0 00-2 2v3a2 2 0 002 2z"></path></svg>
                     </button>
                 </div>
             </div>
@@ -102,7 +126,7 @@
                 <div class="flex items-center space-x-2">
                     <!-- School Logo Container -->
                     <div id="school-logo-container" class="w-8 h-8 flex items-center justify-center border rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
-                        <img id="school-logo-img" class="w-full h-full object-cover hidden" src="" alt="School Logo">
+                        <img id="school-logo-img" class="w-full h-full object-cover hidden" src="" alt="School Logo" onerror="this.onerror=null; this.src=''; document.getElementById('school-logo-text').classList.remove('hidden'); this.classList.add('hidden');">
                         <span id="school-logo-text" class="text-sm font-bold text-indigo-700">T.</span>
                     </div>
                     <h1 id="school-name" class="text-sm font-bold text-gray-800">Tracker App</h1>
@@ -122,7 +146,7 @@
 
     </div>
 
-    <!-- Initial Loading and Error Overlay (Used ONLY for initial connection status) -->
+    <!-- Initial Loading and Error Overlay -->
     <div id="initial-message" class="fixed inset-0 bg-gray-50/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-300">
         <div class="bg-white p-6 rounded-xl shadow-2xl max-w-xs w-full text-center">
             <svg id="loading-spinner" class="animate-spin-slow mx-auto h-6 w-6 text-indigo-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -131,6 +155,14 @@
             </svg>
             <p id="status-text" class="text-sm font-semibold text-gray-700">Connecting...</p>
             <p id="error-detail" class="text-xs text-red-500 mt-1 hidden"></p>
+
+            <!-- Google Sign-In Button (Hidden initially, shown if explicit sign-in is needed) -->
+            <button id="google-sign-in-btn" 
+                onclick="window.app.signInWithGoogle()"
+                class="google-sign-in-btn mt-4 text-xs flex items-center justify-center mx-auto space-x-2 hidden">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12.24 10.274a1.88 1.88 0 0 0-.074-.325h-.001c-.004-.015-.008-.03-.012-.045a4.2 4.2 0 0 0-3.92-3.14V7.5c.34-.05.68-.076 1.02-.076a5.72 5.72 0 0 1 5.61 5.76c0 .41-.05.81-.13 1.2h-.002c-.01.03-.02.05-.03.07a4.2 4.2 0 0 0-3.69 2.53v.001c-.1.18-.21.35-.34.5-.2.2-.4.36-.62.53l.004-.002a7.6 7.6 0 0 0 5.17-5.54 7.6 7.6 0 0 0-.005-.33 7.6 7.6 0 0 0-7.39-7.38z" fill="#fff" opacity="0.6"/><path d="M11.95 24c-.21 0-.42-.01-.63-.03a11.97 11.97 0 0 1-10.7-10.7c0-.21.01-.42.03-.63h.001c.02-.38.07-.76.13-1.13a1.88 1.88 0 0 0-.13 1.13 10.15 10.15 0 0 0 10.12 10.12c.21 0 .42-.01.63-.03l-.001.002zM12 0c.21 0 .42.01.63.03a11.97 11.97 0 0 1 10.7 10.7c0 .21-.01.42-.03.63h-.001c-.02.38-.07.76-.13 1.13a1.88 1.88 0 0 0 .13-1.13A10.15 10.15 0 0 0 11.88.11c-.21 0-.42.01-.63.03l.001-.002z" fill="#fff" opacity="0.4"/></svg>
+                <span>Sign In with Google</span>
+            </button>
         </div>
     </div>
     
@@ -174,60 +206,66 @@
     
     <!-- Settings Modal (For Configuration) -->
     <div id="settings-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 hidden items-center justify-center p-2">
-        <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg p-4 h-[90%] overflow-y-auto transform transition-all duration-300 scale-95 opacity-0" id="settings-content-wrapper">
-            <div class="flex justify-between items-start mb-4 border-b pb-2">
+        <!-- Added max-h-full and flex-col for sticky header/footer -->
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg max-h-[90%] flex flex-col transform transition-all duration-300 scale-95 opacity-0" id="settings-content-wrapper">
+            
+            <!-- Sticky Header -->
+            <div class="p-4 flex justify-between items-center border-b pb-2 sticky top-0 bg-white z-10 rounded-t-lg">
                 <h2 class="text-lg font-bold text-indigo-700">Application Settings</h2>
                 <button onclick="window.app.closeModal('settings-modal', 'settings-content-wrapper')" class="text-gray-400 hover:text-gray-600">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
 
-            <!-- School Information Section -->
-            <div class="mb-6">
-                <h3 class="text-sm font-bold text-gray-800 mb-2 border-l-4 border-indigo-400 pl-2">School Information</h3>
-                <div id="school-info-form" class="grid grid-cols-2 gap-3 text-sm">
-                    <input type="text" id="config-schoolName" placeholder="School Name" class="col-span-2 p-2 border rounded-md focus:ring-indigo-500">
-                    
-                    <!-- Logo Upload and Fallback Text -->
-                    <div class="col-span-2 flex items-center space-x-3">
-                        <!-- Logo Preview/Text Fallback -->
-                        <div id="logo-preview-container" class="w-12 h-12 flex-shrink-0 border rounded-full bg-gray-100 overflow-hidden flex items-center justify-center">
-                            <img id="config-logo-preview" class="w-full h-full object-cover hidden" src="" alt="Current Logo">
-                            <span id="config-logo-text-preview" class="text-lg font-bold text-indigo-700">T.</span>
+            <!-- Scrollable Body Content -->
+            <div class="p-4 flex-1 overflow-y-auto">
+                <!-- School Information Section -->
+                <div class="mb-6">
+                    <h3 class="text-sm font-bold text-gray-800 mb-2 border-l-4 border-indigo-400 pl-2">School Information</h3>
+                    <div id="school-info-form" class="grid grid-cols-2 gap-3 text-sm">
+                        <input type="text" id="config-schoolName" placeholder="School Name" class="col-span-2 p-2 border rounded-md focus:ring-indigo-500">
+                        
+                        <!-- Logo Upload and Fallback Text -->
+                        <div class="col-span-2 flex items-center space-x-3">
+                            <!-- Logo Preview/Text Fallback -->
+                            <div id="logo-preview-container" class="w-12 h-12 flex-shrink-0 border rounded-full bg-gray-100 overflow-hidden flex items-center justify-center">
+                                <img id="config-logo-preview" class="w-full h-full object-cover hidden" src="" alt="Current Logo" onerror="this.onerror=null; this.src=''; document.getElementById('config-logo-text-preview').classList.remove('hidden'); this.classList.add('hidden');">
+                                <span id="config-logo-text-preview" class="text-lg font-bold text-indigo-700">T.</span>
+                            </div>
+                            
+                            <div class="flex-grow">
+                                <label for="config-schoolLogoFile" class="block text-xs font-medium text-gray-700 mb-1">Upload School Logo (Max 1MB)</label>
+                                <input type="file" id="config-schoolLogoFile" accept="image/*" class="w-full text-sm text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                                <input type="text" id="config-schoolLogoText" placeholder="Fallback Text (e.g., T)" class="mt-1 p-1.5 w-full border rounded-md text-xs focus:ring-indigo-500">
+                            </div>
                         </div>
                         
-                        <div class="flex-grow">
-                            <label for="config-schoolLogoFile" class="block text-xs font-medium text-gray-700 mb-1">Upload School Logo (Image)</label>
-                            <input type="file" id="config-schoolLogoFile" accept="image/*" class="w-full text-sm text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-                            <input type="text" id="config-schoolLogoText" placeholder="Fallback Text (e.g., T)" class="mt-1 p-1.5 w-full border rounded-md text-xs focus:ring-indigo-500">
-                        </div>
+                        <input type="text" id="config-schoolPhone" placeholder="Phone Number" class="p-2 border rounded-md focus:ring-indigo-500">
+                        <input type="text" id="config-schoolAddress" placeholder="Address" class="col-span-2 p-2 border rounded-md focus:ring-indigo-500">
+                        <input type="text" id="config-schoolWebsite" placeholder="Website URL" class="col-span-2 p-2 border rounded-md focus:ring-indigo-500">
                     </div>
+                </div>
+
+                <!-- Departments and Classes Section -->
+                <div class="mb-6">
+                    <h3 class="text-sm font-bold text-gray-800 mb-2 border-l-4 border-indigo-400 pl-2">Manage Departments & Classes</h3>
                     
-                    <input type="text" id="config-schoolPhone" placeholder="Phone Number" class="p-2 border rounded-md focus:ring-indigo-500">
-                    <input type="text" id="config-schoolAddress" placeholder="Address" class="col-span-2 p-2 border rounded-md focus:ring-indigo-500">
-                    <input type="text" id="config-schoolWebsite" placeholder="Website URL" class="col-span-2 p-2 border rounded-md focus:ring-indigo-500">
+                    <div id="departments-list" class="space-y-4">
+                        <!-- Departments and classes injected here -->
+                    </div>
+
+                    <!-- Add New Department -->
+                    <div class="mt-4 flex space-x-2">
+                        <input type="text" id="new-department-name" placeholder="New Department Name (e.g., Summer School)" class="flex-grow p-2 border rounded-md text-sm focus:ring-indigo-500">
+                        <button onclick="window.app.addDepartment()" class="px-3 py-1 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition duration-150">
+                            Add Department
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Departments and Classes Section -->
-            <div class="mb-6">
-                <h3 class="text-sm font-bold text-gray-800 mb-2 border-l-4 border-indigo-400 pl-2">Manage Departments & Classes</h3>
-                
-                <div id="departments-list" class="space-y-4">
-                    <!-- Departments and classes injected here -->
-                </div>
-
-                <!-- Add New Department -->
-                <div class="mt-4 flex space-x-2">
-                    <input type="text" id="new-department-name" placeholder="New Department Name (e.g., Summer School)" class="flex-grow p-2 border rounded-md text-sm focus:ring-indigo-500">
-                    <button onclick="window.app.addDepartment()" class="px-3 py-1 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition duration-150">
-                        Add Department
-                    </button>
-                </div>
-            </div>
-
-            <!-- Save Configuration Button -->
-            <div class="mt-6 pt-3 border-t border-gray-100 flex justify-end">
+            <!-- Sticky Footer: Save Configuration Button -->
+            <div class="p-4 pt-3 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10 rounded-b-lg">
                 <button onclick="window.app.saveConfig()" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition duration-150">
                     Save All Settings
                 </button>
@@ -239,19 +277,20 @@
     <!-- Firebase SDK Imports -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence, 
+                 // Added for Google Sign-In
+                 GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
             getFirestore, doc, setDoc, onSnapshot, runTransaction, getDoc, 
             collection, query, Timestamp, setLogLevel 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        // New: Import Firebase Storage modules
-        import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
 
         // IMPORTANT: The following global variables are expected to be provided by the execution environment.
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         
-        // Configuration provided explicitly by the user, used as a fallback if the environment config is missing.
+        // Mocked Firebase Config for demonstration purposes (replace with your actual config or keep provided config)
         const USER_PROVIDED_FIREBASE_CONFIG = {
             apiKey: "AIzaSyCtsveJ8hmw6JJN4YlouNuHhmvSYumiMos",
             authDomain: "classroom-chronicle-l6lhk.firebaseapp.com",
@@ -261,7 +300,6 @@
             appId: "1:642583297310:web:fdb8da9ab0f01cd9aa9d0f"
         };
         
-        // Prioritize the environment-provided config (__firebase_config), otherwise use the user's explicit fallback.
         const firebaseConfig = typeof __firebase_config !== 'undefined' 
             ? JSON.parse(__firebase_config) 
             : USER_PROVIDED_FIREBASE_CONFIG;
@@ -272,8 +310,9 @@
         let app;
         let db;
         let auth;
-        let storage; // Added for Storage
+        let storage; 
         let userId = null;
+        let userDisplayName = 'User'; 
         let dailyReportUnsubscribe = null;
         let accumulatedScoresUnsubscribe = null;
         let configUnsubscribe = null;
@@ -283,8 +322,8 @@
         const DEFAULT_CONFIG = {
             schoolInfo: {
                 name: 'Weekend School Tracker',
-                logoText: 'WS', // Text fallback
-                logoUrl: '', // New field for image URL
+                logoText: 'WS', 
+                logoUrl: '', 
                 address: '123 Main St',
                 website: 'https://school.edu',
                 phone: '(123) 456-7890'
@@ -295,17 +334,8 @@
                     name: 'Weekend School', 
                     classes: [
                         { id: 'Girls-1A', name: '1A', type: 'Girls' },
-                        { id: 'Girls-1B', name: '1B', type: 'Girls' },
-                        { id: 'Girls-1C', name: '1C', type: 'Girls' },
-                        { id: 'Girls-2', name: '2', type: 'Girls' },
-                        { id: 'Girls-3', name: '3', type: 'Girls' },
                         { id: 'Girls-4', name: '4', type: 'Girls' },
-                        
                         { id: 'Boys-1A', name: '1A', type: 'Boys' },
-                        { id: 'Boys-1B', name: '1B', type: 'Boys' },
-                        { id: 'Boys-1C', name: '1C', type: 'Boys' },
-                        { id: 'Boys-2', name: '2', type: 'Boys' },
-                        { id: 'Boys-3', name: '3', type: 'Boys' },
                         { id: 'Boys-4', name: '4', type: 'Boys' },
                     ]
                 }
@@ -369,12 +399,10 @@
             if (type === 'error') {
                 console.error(`[APP ERROR] ${title}: ${detail}`);
             } else if (type === 'none') {
-                // Log for processes that are expected to take time, but not necessarily a success/error
                 console.log(`[APP STATUS] ${title}: ${detail}`);
             } else {
                 console.log(`[APP SUCCESS] ${title}: ${detail}`);
             }
-            // IMPORTANT: All UI manipulation code for temporary messages has been removed per user request.
         }
 
         /**
@@ -383,6 +411,28 @@
         function hideInitialMessage() {
             const overlay = document.getElementById('initial-message');
             overlay.classList.add('opacity-0', 'pointer-events-none');
+            document.getElementById('google-sign-in-btn').classList.add('hidden');
+        }
+
+        /**
+         * Shows the main loading/status overlay.
+         */
+        function showInitialMessage(statusText = 'Connecting...', errorText = null, showSpinner = true, showSignIn = false) {
+            const overlay = document.getElementById('initial-message');
+            document.getElementById('status-text').textContent = statusText;
+            document.getElementById('loading-spinner').classList.toggle('hidden', !showSpinner);
+            document.getElementById('google-sign-in-btn').classList.toggle('hidden', !showSignIn);
+
+            const errorDetail = document.getElementById('error-detail');
+            if (errorText) {
+                errorDetail.textContent = errorText;
+                errorDetail.classList.remove('hidden');
+            } else {
+                errorDetail.classList.add('hidden');
+            }
+
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
+            overlay.classList.add('flex');
         }
 
         /**
@@ -443,6 +493,7 @@
             }
 
             const contactInfoHtml = `
+                <p class="font-medium text-gray-600">${userDisplayName}</p>
                 ${info.address ? `<p>${info.address}</p>` : ''}
                 ${info.phone ? `<p>${info.phone}</p>` : ''}
                 ${info.website ? `<p><a href="${info.website}" target="_blank" class="text-indigo-500 hover:underline">${info.website.replace(/(https?:\/\/)/, '')}</a></p>` : ''}
@@ -454,6 +505,10 @@
          * Renders the main grid of class cards, now grouped by department and then by gender.
          */
         function renderClassList() {
+            if (!userId) {
+                 document.getElementById('scores-view').innerHTML = `<div class="p-4 text-center text-gray-500">Please sign in to view class data.</div>`;
+                 return;
+            }
             const scoresView = document.getElementById('scores-view');
             scoresView.innerHTML = ''; 
 
@@ -470,8 +525,6 @@
             
             /**
              * Generates the HTML card for a single class.
-             * @param {object} classDef The class definition object.
-             * @returns {string} The HTML string for the card.
              */
             const generateClassCard = (classDef) => {
                 const classId = classDef.id;
@@ -481,13 +534,11 @@
                 
                 const dcs = dailyReport ? dailyReport.dailyClassScore : 0;
                 
-                // Extract daily stats
                 const T = dailyReport?.totalStudents || 0;
                 const P = dailyReport?.presentToday || 0;
                 const PR = dailyReport?.progressReportBrought || 0;
                 const PRS = dailyReport?.progressReportSigned || 0;
 
-                // Split stats into two lines for consistent compact display
                 const line1Stats = `T:${T} P:${P}`;
                 const line2Stats = `PR:${PR} PRS:${PRS}`;
 
@@ -575,7 +626,7 @@
         }
 
         /**
-         * Renders the content of the report modal. (No change to core logic)
+         * Renders the content of the report modal.
          */
         function renderModalContent(classId) {
             const classDef = findClassById(classId);
@@ -647,7 +698,7 @@
         }
 
         /**
-         * Handles input changes in the report modal and updates the DCS. (No change to core logic)
+         * Handles input changes in the report modal and updates the DCS.
          */
         function updateReportEntry(classId) {
             let totalStudents = Math.max(0, parseInt(document.getElementById('totalStudents').value, 10) || 0);
@@ -679,7 +730,7 @@
         }
 
         /**
-         * Saves the report data to Firestore using a transaction for atomic updates. (No change to core logic)
+         * Saves the report data to Firestore using a transaction for atomic updates.
          */
         async function saveClassReport(classId) {
             if (isSaving || !userId) return;
@@ -709,7 +760,7 @@
                 progressReportBrought,
                 progressReportSigned,
                 dailyClassScore: score,
-                recordedBy: userId,
+                recordedBy: userId, // Keep track of who recorded the data
                 timestamp: Timestamp.now()
             };
 
@@ -719,11 +770,13 @@
             spinner.classList.remove('hidden');
 
             try {
-                const dailyReportsDocRef = doc(db, `artifacts/${appId}/users/${userId}/daily_attendance_reports`, reportDateId);
+                // --- PUBLIC PATH FOR DAILY REPORTS ---
+                const dailyReportsDocRef = doc(db, `artifacts/${appId}/public/data/daily_attendance_reports`, reportDateId);
                 const dailyReportsDoc = await getDoc(dailyReportsDocRef);
                 const existingReports = dailyReportsDoc.exists() ? dailyReportsDoc.data() : {};
                 const existingScore = existingReports[classId]?.dailyClassScore || 0;
                 
+                // --- PUBLIC PATH FOR ACCUMULATED SCORES (Already Public) ---
                 const accumulatedDocRef = doc(db, `artifacts/${appId}/public/data/accumulated_class_scores`, classId);
 
                 await runTransaction(db, async (transaction) => {
@@ -756,7 +809,7 @@
                     [classId]: newReportData
                 }, { merge: true });
 
-                showMessage('Saved!', `${classId} report updated.`);
+                showMessage('Saved!', `${classId} report updated globally.`);
                 window.app.closeModal('report-modal', 'modal-content-wrapper');
 
             } catch (error) {
@@ -774,7 +827,7 @@
         // --- CONFIGURATION MANAGEMENT ---
 
         /**
-         * Renders the Departments and Classes section inside the Settings Modal. (Unchanged)
+         * Renders the Departments and Classes section inside the Settings Modal.
          */
         function renderDepartmentsInSettings() {
             const departmentsList = document.getElementById('departments-list');
@@ -924,7 +977,9 @@
 
             const fileInput = document.getElementById('config-schoolLogoFile');
             const file = fileInput.files[0];
-            let logoUrl = appState.config.schoolInfo.logoUrl || '';
+            
+            // Start with the existing logo URL from state
+            let logoUrl = appState.config.schoolInfo.logoUrl || ''; 
             const logoText = document.getElementById('config-schoolLogoText').value.trim() || 'T.';
 
             if (file) {
@@ -936,20 +991,17 @@
                 showMessage('Uploading...', 'Please wait while the logo is being saved.', 'none');
 
                 try {
-                    // Note: This path requires Firebase Storage Security Rules to allow writes by request.auth.uid
-                    const storagePath = `logos/${userId}/school_logo`; 
+                    // Note: This path is specific for the logo, still needs to be writable by user
+                    const storagePath = `logos/${appId}/school_logo`; 
                     const fileRef = storageRef(storage, storagePath);
                     await uploadBytes(fileRef, file);
-                    logoUrl = await getDownloadURL(fileRef);
+                    logoUrl = await getDownloadURL(fileRef); // Get the public URL
                     showMessage('Upload Success', 'Logo image uploaded.', 'success');
                 } catch (error) {
                     console.error("Error uploading logo:", error);
-                    showMessage('Upload Error', `Failed to upload logo: ${error.message}. Please check your Firebase Storage Security Rules.`, 'error');
+                    showMessage('Upload Error', `Failed to upload logo: ${error.message}`, 'error');
                     return; // Stop saving if upload fails
                 }
-            } else if (fileInput.value === '' && logoUrl !== '' && !appState.config.schoolInfo.logoUrl) {
-                // If the user cleared the file input (though there's no clear button, this handles future clear options)
-                // Since no file is selected, we keep the existing URL unless explicitly removing it later.
             }
             
             // 2. Collect School Info from inputs
@@ -968,7 +1020,8 @@
                 departments: appState.config.departments
             };
 
-            const configDocRef = doc(db, `artifacts/${appId}/users/${userId}/config`, 'schoolConfig');
+            // --- PUBLIC PATH FOR CONFIGURATION ---
+            const configDocRef = doc(db, `artifacts/${appId}/public/data/config`, 'schoolConfig');
 
             try {
                 await setDoc(configDocRef, newConfig);
@@ -976,7 +1029,7 @@
                 renderSchoolInfo();
                 renderClassList();
                 window.app.closeModal('settings-modal', 'settings-content-wrapper');
-                showMessage('Saved!', 'Configuration and Logo updated successfully.');
+                showMessage('Saved!', 'Configuration and Logo updated successfully. All users now see this config.');
             } catch (error) {
                 console.error("Error saving configuration:", error);
                 showMessage('Error', `Failed to save configuration: ${error.message}`, 'error');
@@ -986,30 +1039,33 @@
         // --- FIREBASE LISTENERS ---
 
         /**
-         * Sets up the listener for the user's application configuration. (Unchanged logic, but config now includes logoUrl)
+         * Sets up the listener for the shared application configuration.
          */
         function setupConfigListener() {
-            if (!db || !userId) return;
+            if (!db) return;
 
             if (configUnsubscribe) configUnsubscribe();
 
-            const configDocRef = doc(db, `artifacts/${appId}/users/${userId}/config`, 'schoolConfig');
+            // --- PUBLIC PATH FOR CONFIGURATION ---
+            const configDocRef = doc(db, `artifacts/${appId}/public/data/config`, 'schoolConfig');
+            
             configUnsubscribe = onSnapshot(configDocRef, (docSnap) => {
                 if (docSnap.exists()) {
                     appState.config = docSnap.data();
                 } else {
-                    setDoc(configDocRef, DEFAULT_CONFIG);
+                    // If no config exists, set the default one using the public path
+                    setDoc(configDocRef, DEFAULT_CONFIG); 
                     appState.config = DEFAULT_CONFIG;
                 }
                 renderSchoolInfo();
                 renderClassList();
             }, (error) => {
-                console.error("Error listening to config:", error);
+                console.error("Error listening to shared config:", error);
             });
         }
 
         /**
-         * Sets up real-time Firestore listeners for daily reports and accumulated scores. (Unchanged)
+         * Sets up real-time Firestore listeners for daily reports and accumulated scores.
          */
         function setupFirestoreListeners() {
             if (!db || !userId) {
@@ -1022,7 +1078,8 @@
             if (dailyReportUnsubscribe) dailyReportUnsubscribe();
             if (accumulatedScoresUnsubscribe) accumulatedScoresUnsubscribe();
 
-            const dailyReportsDocRef = doc(db, `artifacts/${appId}/users/${userId}/daily_attendance_reports`, formatDate(appState.currentDate));
+            // --- PUBLIC PATH FOR DAILY REPORTS ---
+            const dailyReportsDocRef = doc(db, `artifacts/${appId}/public/data/daily_attendance_reports`, formatDate(appState.currentDate));
             dailyReportUnsubscribe = onSnapshot(dailyReportsDocRef, (docSnap) => {
                 if (docSnap.exists()) {
                     appState.dailyReports = docSnap.data();
@@ -1035,12 +1092,11 @@
                 }
                 hideInitialMessage();
             }, (error) => {
-                console.error("Error listening to daily reports:", error);
-                // Keeping initial message visible for network errors during fetch
-                // showMessage('Error', 'Failed to load daily reports.', 'error');
+                console.error("Error listening to shared daily reports:", error);
             });
 
 
+            // --- PUBLIC PATH FOR ACCUMULATED SCORES (Already Public) ---
             const accumulatedCollectionRef = collection(db, `artifacts/${appId}/public/data/accumulated_class_scores`);
             accumulatedScoresUnsubscribe = onSnapshot(accumulatedCollectionRef, (snapshot) => {
                 const newScores = {};
@@ -1055,16 +1111,65 @@
         }
         
         // --- AUTHENTICATION & INITIALIZATION ---
+
+        /**
+         * Handles the UI updates upon successful authentication.
+         */
+        function handleSuccessfulAuth(user) {
+            userId = user.uid;
+            userDisplayName = user.displayName || user.email || 'User';
+
+            // Update UI for authenticated state
+            document.getElementById('auth-icon').innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3v-4a3 3 0 013-3h4a3 3 0 013 3v1"></path>`;
+            document.getElementById('user-auth-btn').title = `Signed in as: ${userDisplayName} | Click to copy ID / Sign Out`;
+
+
+            // Set up date and initial listeners
+            const dateInput = document.getElementById('date-selector');
+            appState.currentDate = new Date();
+            const today = formatDate(appState.currentDate);
+            
+            dateInput.value = today;
+            dateInput.max = today; 
+            document.getElementById('display-date').textContent = formatDisplayDate(appState.currentDate);
+
+            setupFirestoreListeners();
+        }
+
+        /**
+         * Signs the user in using Google pop-up.
+         */
+        async function signInWithGoogle() {
+            showInitialMessage('Signing in with Google...');
+            try {
+                const provider = new GoogleAuthProvider();
+                const result = await signInWithPopup(auth, provider);
+                handleSuccessfulAuth(result.user);
+            } catch (error) {
+                console.error("Google Sign-In Error:", error);
+                showInitialMessage('Sign In Failed', `Error: ${error.message}`, false, true);
+            }
+        }
         
+        /**
+         * Signs the user out.
+         */
+        async function signOutUser() {
+            try {
+                await signOut(auth);
+                // The onAuthStateChanged listener will handle UI reset
+            } catch (error) {
+                console.error("Sign Out Error:", error);
+                showMessage('Sign Out Error', error.message, 'error');
+            }
+        }
+
         /**
          * Initializes Firebase and authenticates the user.
          */
         async function initializeFirebase() {
             if (!firebaseConfig) {
-                document.getElementById('status-text').textContent = 'Config Error';
-                document.getElementById('error-detail').textContent = 'Missing config.';
-                document.getElementById('error-detail').classList.remove('hidden');
-                document.getElementById('loading-spinner').classList.add('hidden');
+                showInitialMessage('Config Error', 'Missing Firebase configuration.', false);
                 return;
             }
 
@@ -1074,44 +1179,54 @@
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                storage = getStorage(app); // Initialize Storage
+                storage = getStorage(app); 
                 
                 await setPersistence(auth, browserSessionPersistence);
                 
-                const authPromise = initialAuthToken 
-                    ? signInWithCustomToken(auth, initialAuthToken) 
-                    : signInAnonymously(auth);
-
-                await authPromise;
+                // 1. Try to sign in using the provided custom token (Canvas environment login)
+                if (initialAuthToken) { 
+                    showInitialMessage('Authenticating...');
+                    try {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    } catch (e) {
+                         // Fallback to anonymous if custom token fails (shouldn't happen in canvas)
+                        console.warn("Custom token failed. Falling back to anonymous login.");
+                        await signInAnonymously(auth);
+                    }
+                } else {
+                    // If no token is provided by the environment, we rely on the persistent auth state.
+                    // If there's no user, we prompt for Google Sign-In.
+                    if (!auth.currentUser) {
+                        showInitialMessage('Please Sign In', 'User authentication required.', false, true);
+                    }
+                }
                 
+                // 2. Set up the state listener
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
-                        userId = user.uid;
-                        // Initial setup complete, now update UI
-                        const dateInput = document.getElementById('date-selector');
-                        appState.currentDate = new Date();
-                        const today = formatDate(appState.currentDate);
-                        
-                        dateInput.value = today;
-                        dateInput.max = today; 
-                        document.getElementById('display-date').textContent = formatDisplayDate(appState.currentDate);
-
-                        setupFirestoreListeners();
+                        handleSuccessfulAuth(user);
                     } else {
-                        // For persistent auth errors, display on the initial message screen
-                        document.getElementById('status-text').textContent = 'Auth Error';
-                        document.getElementById('error-detail').textContent = 'Authentication failed.';
-                        document.getElementById('error-detail').classList.remove('hidden');
-                        document.getElementById('loading-spinner').classList.add('hidden');
+                        // User signed out or initial auth check failed/no existing user
+                        userId = null;
+                        userDisplayName = 'Guest';
+                        renderSchoolInfo();
+                        renderClassList(); // Clear class list
+
+                        document.getElementById('auth-icon').innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0v4m-5 9h2a2 2 0 002-2v-3a2 2 0 00-2-2H8a2 2 0 00-2 2v3a2 2 0 002 2z"></path>`;
+                        document.getElementById('user-auth-btn').title = 'Click to Sign In';
+                        
+                        // Only show sign-in prompt if we didn't just log in via a token
+                        if (!initialAuthToken) {
+                            showInitialMessage('Please Sign In', 'User authentication required.', false, true);
+                        } else {
+                            hideInitialMessage(); // In case we signed out but a token exists (e.g., in a new tab)
+                        }
                     }
                 });
 
             } catch (error) {
                 console.error("Firebase Initialization Error:", error);
-                document.getElementById('status-text').textContent = 'Error';
-                document.getElementById('error-detail').textContent = `Auth failed: ${error.message}`;
-                document.getElementById('error-detail').classList.remove('hidden');
-                document.getElementById('loading-spinner').classList.add('hidden');
+                showInitialMessage('Error', `Init failed: ${error.message}`, false);
             }
         }
         
@@ -1119,21 +1234,52 @@
         
         const appInterface = {
             handleDateChange: function(event) {
+                if (!userId) {
+                    showMessage('Access Denied', 'Please sign in to change the date.', 'error');
+                    return;
+                }
                 const newDate = new Date(event.target.value);
                 // Adjust for local timezone offset when creating the Date object from the input string
                 appState.currentDate = new Date(newDate.getTime() + newDate.getTimezoneOffset() * 60000); 
                 document.getElementById('display-date').textContent = formatDisplayDate(appState.currentDate);
 
-                // Show the loading spinner briefly for the new data fetch
-                document.getElementById('status-text').textContent = 'Fetching...';
-                document.getElementById('error-detail').classList.add('hidden');
-                document.getElementById('loading-spinner').classList.remove('hidden');
-                document.getElementById('initial-message').classList.remove('opacity-0', 'pointer-events-none');
+                // Re-initializes listeners for the new date
+                showInitialMessage('Fetching...', null, true, false);
+                setupFirestoreListeners(); 
+            },
 
-                setupFirestoreListeners(); // Re-initializes listeners for the new date
+            handleAuthAction: async function() {
+                if (userId) {
+                    // Currently signed in: Action is Copy ID / Sign Out
+                    const action = confirm(`Signed in as ${userDisplayName}.\nUser ID: ${userId}\n\nDo you want to sign out? \n\n(Cancel to copy User ID to clipboard)`);
+                    if (action) {
+                        await signOutUser();
+                    } else {
+                         // Copy User ID
+                        const id = userId;
+                        try {
+                            const tempInput = document.createElement('textarea');
+                            tempInput.value = id;
+                            document.body.appendChild(tempInput);
+                            tempInput.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(tempInput);
+                            showMessage('Copied!', `User ID copied: ${id}`);
+                        } catch (err) {
+                            console.error('Could not copy text: ', err);
+                        }
+                    }
+                } else {
+                    // Not signed in: Action is Sign In
+                    await signInWithGoogle();
+                }
             },
 
             selectClass: function(classId) {
+                if (!userId) {
+                    showMessage('Access Denied', 'Please sign in to record a report.', 'error');
+                    return;
+                }
                 appState.selectedClassId = classId;
                 renderModalContent(classId);
                 this.openModal('report-modal', 'modal-content-wrapper');
@@ -1173,6 +1319,10 @@
             
             // Settings/Config methods exposed
             openSettingsModal: function() {
+                if (!userId) {
+                    showMessage('Access Denied', 'Please sign in to change settings.', 'error');
+                    return;
+                }
                 const info = appState.config.schoolInfo || {};
                 
                 // 1. Populate text fields
@@ -1221,6 +1371,7 @@
                 this.openModal('settings-modal', 'settings-content-wrapper');
             },
 
+            signInWithGoogle: signInWithGoogle,
             addDepartment: addDepartment,
             removeDepartment: removeDepartment,
             addClass: addClass,
@@ -1234,26 +1385,6 @@
         // --- INITIAL SETUP ---
         
         window.onload = function() {
-            // Copy user ID utility
-            document.getElementById('user-id-display').addEventListener('click', async () => {
-                const id = userId || 'Loading...';
-                if (id === 'Loading...') {
-                    console.log('User ID is still loading. Cannot copy.');
-                    return;
-                }
-                try {
-                    const tempInput = document.createElement('textarea');
-                    tempInput.value = id;
-                    document.body.appendChild(tempInput);
-                    tempInput.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(tempInput);
-                    console.log(`User ID copied: ${id}`);
-                } catch (err) {
-                    console.error('Could not copy text: ', err);
-                }
-            });
-
             initializeFirebase();
         };
 
