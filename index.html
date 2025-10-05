@@ -159,7 +159,15 @@
                 showMessage("Successfully signed in with Google!", 'success');
             } catch (error) {
                 console.error("Google Sign-In Error:", error);
-                showMessage(`Google Sign-In failed: ${error.message}`, 'error');
+                
+                let userMessage = `Google Sign-In failed: ${error.message}`;
+                
+                if (error.code === 'auth/unauthorized-domain') {
+                    // Provide helpful instructions for the user when this specific error occurs
+                    userMessage = "Sign-In Failed: The current domain is not authorized. Please add this application's domain (e.g., 'localhost' or your deployed URL) to the 'Authorized domains' list in your Firebase Console under **Authentication > Settings**.";
+                }
+
+                showMessage(userMessage, 'error');
             }
         }
 
@@ -191,14 +199,13 @@
 
                 loadingIndicator.style.display = 'block';
                 
-                // 1. Initial Authentication using token or anonymously if no token
+                // 1. Initial Authentication using token or skipping auto-sign-in if running publicly
                 if (initialAuthToken) {
+                    // This path is for the secure Canvas environment
                     await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    // When deployed publicly, we sign in anonymously first.
-                    // The user will then be prompted to use Google Sign-In to fully authenticate.
-                    await signInAnonymously(auth);
-                }
+                } 
+                // We intentionally skip automatic sign-in (anonymous or otherwise) here, 
+                // relying on the user to click the Google sign-in button.
 
                 // 2. Set up the state listener
                 onAuthStateChanged(auth, (user) => {
@@ -215,7 +222,7 @@
                         setupRealtimeListener();
 
                     } else if (user && user.isAnonymous === true) {
-                        // User is signed in anonymously (default state for public deployment)
+                        // User is signed in anonymously (only occurs if Anonymous Auth is enabled or via initialAuthToken)
                         userId = user.uid;
                         userIdDisplay.textContent = 'Anonymous (Sign in with Google below)';
                         loggedOutView.classList.remove('hidden'); // Show sign-in button
@@ -226,7 +233,7 @@
                         setupRealtimeListener(); 
                         
                     } else {
-                        // No user signed in (shouldn't happen often after anonymous sign-in, but good practice)
+                        // No user signed in
                         userId = null;
                         userIdDisplay.textContent = 'N/A';
                         loggedOutView.classList.remove('hidden');
@@ -255,7 +262,9 @@
                 return;
             }
 
-            if (!userId || auth.currentUser.isAnonymous) {
+            // Check if user is logged in via Google (not anonymous)
+            const currentUser = auth.currentUser;
+            if (!currentUser || currentUser.isAnonymous) {
                 showMessage("Please sign in with Google to save your notes permanently.", 'error');
                 return;
             }
@@ -290,6 +299,7 @@
             if (!notesColRef) return;
 
             // Define the query: get all notes for the current user
+            // We use the collection reference which is scoped to the current user's path
             const q = query(notesColRef); 
 
             // Start listening for real-time updates
@@ -308,7 +318,7 @@
                 console.error("Firestore onSnapshot error:", error);
                 // Note: Security rule errors often appear here when users try to save/fetch data 
                 // without proper authentication (like anonymous users trying to write to a protected path).
-                showMessage(`Error fetching notes: ${error.message}. Ensure you are signed in with Google.`, 'error');
+                showMessage(`Error fetching notes: ${error.message}. Ensure you are signed in with Google and your Firestore security rules permit access.`, 'error');
                 renderNotes([]); // Clear the list on error
             });
         }
